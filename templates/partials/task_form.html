@@ -1,0 +1,30 @@
+<div class="form-grid">
+  <label class="wide">
+    <span>标题</span>
+    <input type="text" name="title" value="{{ task.title if task is defined else '' }}" required>
+  </label>
+  <label class="wide">
+    <span>描述</span>
+    <textarea name="description" rows="4">{{ task.description if task is defined else '' }}</textarea>
+  </label>
+  <label>
+    <span>截止时间</span>
+    <input type="datetime-local" name="due_date" value="{{ task.due_form if task is defined else '' }}">
+  </label>
+  <label>
+    <span>计划日期</span>
+    <input type="date" name="scheduled_date" value="{{ task.scheduled_form if task is defined else '' }}">
+  </label>
+  <label>
+    <span>优先级</span>
+    <select name="priority">
+      {% for value, label in priority_labels.items() %}
+        <option value="{{ value }}" {% if task is defined and task.priority == value %}selected{% elif task is not defined and value == 2 %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>
+    <span>目标番茄</span>
+    <input type="number" name="target_pomodoros" min="1" max="20" value="{{ task.target_pomodoros if task is defined else 1 }}">
+  </label>
+</div>

@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block title %}工作台 - 智能日程管理器{% endblock %}
+
+{% block body %}
+<div class="app-shell">
+  <aside class="sidebar">
+    <div>
+      <p class="eyebrow">Smart Schedule</p>
+      <h1>智能日程</h1>
+      <p class="account">当前账号：{{ username }}</p>
+    </div>
+    <nav class="nav-list" aria-label="页面导航">
+      <a href="#tasks">任务</a>
+      <a href="#pomodoro">番茄钟</a>
+      <a href="#stats">统计</a>
+    </nav>
+    <form action="{{ url_for('logout') }}" method="post">
+      <button class="button ghost full" type="submit">退出账号</button>
+    </form>
+  </aside>
+
+  <main class="content">
+    {% include "partials/flash.html" %}
+
+    <section class="topbar">
+      <div>
+        <h2>工作台</h2>
+        <p class="muted">管理任务、计划日期、番茄记录和专注积分。</p>
+      </div>
+      <button class="button primary" type="button" data-open-dialog="task-create">新建任务</button>
+    </section>
+
+    <section class="metric-grid" aria-label="概览">
+      <article class="metric">
+        <span>任务总数</span>
+        <strong>{{ summary.total }}</strong>
+      </article>
+      <article class="metric">
+        <span>完成率</span>
+        <strong>{{ summary.completion_rate }}%</strong>
+      </article>
+      <article class="metric">
+        <span>今日专注</span>
+        <strong>{{ summary.today_focus }}</strong>
+      </article>
+      <article class="metric">
+        <span>积分称号</span>
+        <strong>{{ summary.points.title }}</strong>
+      </article>
+    </section>
+
+    <section class="workspace-grid">
+      <div class="panel" id="tasks">
+        <div class="panel-header">
+          <div>
+            <h3>任务列表</h3>
+            <p class="muted">{{ summary.active }} 个待办，{{ summary.pending }} 个计划中，{{ summary.completed }} 个已完成。</p>
+          </div>
+          <div class="tabs" role="tablist" aria-label="任务分类">
+            <button class="tab active" type="button" data-tab="active">待办</button>
+            <button class="tab" type="button" data-tab="pending">计划</button>
+            <button class="tab" type="button" data-tab="completed">完成</button>
+          </div>
+        </div>
+
+        {% for group, title in {"active": "待办任务", "pending": "计划任务", "completed": "已完成任务"}.items() %}
+          <div class="task-list {% if group != 'active' %}hidden{% endif %}" data-panel="{{ group }}">
+            {% if task_groups[group] %}
+              {% for task in task_groups[group] %}
+                {% include "partials/task_card.html" %}
+              {% endfor %}
+            {% else %}
+              <div class="empty-state">{{ title }}为空</div>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+
+      <aside class="side-column">
+        <section class="panel compact" id="pomodoro">
+          <div class="panel-header">
+            <div>
+              <h3>番茄记录</h3>
+              <p class="muted">完成一次专注后记录。</p>
+            </div>
+          </div>
+          <form class="stack" action="{{ url_for('record_pomodoro') }}" method="post">
+            <label>
+              <span>关联任务</span>
+              <select name="task_id">
+                <option value="">不关联任务</option>
+                {% for task in task_groups.active %}
+                  <option value="{{ task.id }}">{{ task.title }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>
+              <span>专注时长（分钟）</span>
+              <input type="number" name="minutes" min="1" max="240" value="25">
+            </label>
+            <button class="button success full" type="submit">记录番茄</button>
+          </form>
+        </section>
+
+        <section class="panel compact">
+          <div class="panel-header">
+            <div>
+              <h3>专注积分</h3>
+              <p class="muted">每个番茄 +25 分。</p>
+            </div>
+          </div>
+          <div class="points-box">
+            <strong>{{ summary.points.points }}</strong>
+            <span>{{ summary.points.title }}</span>
+          </div>
+          {% if summary.points.next_title %}
+            <p class="muted">距离 {{ summary.points.next_title }} 还差 {{ summary.points.points_to_next }} 分。</p>
+          {% else %}
+            <p class="muted">已达到最高称号。</p>
+          {% endif %}
+        </section>
+      </aside>
+    </section>
+
+    <section class="panel stats-panel" id="stats">
+      <div class="panel-header">
+        <div>
+          <h3>统计概览</h3>
+          <p class="muted">最近 7 天专注时长、完成任务和优先级分布。</p>
+        </div>
+      </div>
+      <div class="chart-grid">
+        <div class="chart-wrap">
+          <h4>最近 7 天专注</h4>
+          <canvas id="focusChart"></canvas>
+        </div>
+        <div class="chart-wrap">
+          <h4>最近 7 天完成</h4>
+          <canvas id="completeChart"></canvas>
+        </div>
+        <div class="chart-wrap">
+          <h4>完成优先级</h4>
+          <canvas id="priorityChart"></canvas>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<dialog class="modal" id="task-create">
+  <form action="{{ url_for('create_task') }}" method="post" class="modal-card">
+    <div class="modal-header">
+      <h3>新建任务</h3>
+      <button class="icon-button" type="button" data-close-dialog aria-label="关闭">×</button>
+    </div>
+    {% include "partials/task_form.html" %}
+    <div class="modal-actions">
+      <button class="button muted" type="button" data-close-dialog>取消</button>
+      <button class="button primary" type="submit">保存任务</button>
+    </div>
+  </form>
+</dialog>
+{% endblock %}

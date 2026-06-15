@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}登录 - 智能日程管理器{% endblock %}
+
+{% block body %}
+<main class="login-shell">
+  <section class="login-panel">
+    <div>
+      <p class="eyebrow">Smart Schedule</p>
+      <h1>智能日程管理器</h1>
+      <p class="muted">使用本地账号进入 Web 工作台，任务和番茄钟数据会保存到当前项目的 accounts 目录。</p>
+    </div>
+
+    {% include "partials/flash.html" %}
+
+    <form class="login-form" action="{{ url_for('login') }}" method="post">
+      <label>
+        <span>用户名</span>
+        <input type="text" name="username" placeholder="例如：student" autocomplete="username" required autofocus>
+      </label>
+      <button class="button primary" type="submit">进入工作台</button>
+    </form>
+  </section>
+</main>
+{% endblock %}

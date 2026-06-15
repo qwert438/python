@@ -1,0 +1,49 @@
+<article class="task-card priority-{{ task.priority }}">
+  <div class="task-main">
+    <div>
+      <div class="task-title-row">
+        <h4>{{ task.title }}</h4>
+        <span class="badge">{{ task.priority_label }}</span>
+      </div>
+      {% if task.description %}
+        <p class="task-desc">{{ task.description }}</p>
+      {% endif %}
+      <div class="meta-row">
+        <span>截止：{{ task.due_display }}</span>
+        {% if task.scheduled_display %}<span>计划：{{ task.scheduled_display }}</span>{% endif %}
+        <span>番茄：{{ task.completed_pomodoros }}/{{ task.target_pomodoros }}</span>
+        {% if task.finished_display %}<span>完成：{{ task.finished_display }}</span>{% endif %}
+      </div>
+    </div>
+    <div class="task-actions">
+      {% if not task.completed %}
+        <form action="{{ url_for('complete_task', task_id=task.id) }}" method="post" class="inline-form">
+          <input type="number" name="cost_sec" min="1" max="28800" value="1500" aria-label="实际耗时秒数">
+          <button class="button success small" type="submit">完成</button>
+        </form>
+      {% else %}
+        <form action="{{ url_for('restore_task', task_id=task.id) }}" method="post">
+          <button class="button muted small" type="submit">恢复</button>
+        </form>
+      {% endif %}
+      <button class="button ghost small" type="button" data-open-dialog="edit-{{ task.id }}">编辑</button>
+      <form action="{{ url_for('delete_task', task_id=task.id) }}" method="post" data-confirm="确定删除这个任务吗？">
+        <button class="button danger small" type="submit">删除</button>
+      </form>
+    </div>
+  </div>
+</article>
+
+<dialog class="modal" id="edit-{{ task.id }}">
+  <form action="{{ url_for('update_task', task_id=task.id) }}" method="post" class="modal-card">
+    <div class="modal-header">
+      <h3>编辑任务</h3>
+      <button class="icon-button" type="button" data-close-dialog aria-label="关闭">×</button>
+    </div>
+    {% include "partials/task_form.html" %}
+    <div class="modal-actions">
+      <button class="button muted" type="button" data-close-dialog>取消</button>
+      <button class="button primary" type="submit">保存修改</button>
+    </div>
+  </form>
+</dialog>
