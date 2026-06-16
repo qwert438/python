@@ -1,0 +1,357 @@
+{% extends "base.html" %}
+{% block title %}任务工作台 - 智能日程管理器{% endblock %}
+{% block content %}
+<div class="container">
+    <div class="alert alert-info">📅 {{ today_str }} · 欢迎回来，{{ session.username }}！你有 {{ stats.uncompleted }} 个可执行任务，{{ stats.pending }} 个未来计划。</div>
+
+    <div class="stats-grid">
+        <div class="stat-card" style="--c:#3b82f6;"><div class="value" style="color:#3b82f6;">{{ stats.total }}</div><div class="label">总任务</div></div>
+        <div class="stat-card" style="--c:#f59e0b;"><div class="value" style="color:#f59e0b;">{{ stats.uncompleted }}</div><div class="label">未完成</div></div>
+        <div class="stat-card" style="--c:#8b5cf6;"><div class="value" style="color:#8b5cf6;">{{ stats.pending }}</div><div class="label">待定</div></div>
+        <div class="stat-card" style="--c:#22c55e;"><div class="value" style="color:#22c55e;">{{ stats.completed }}</div><div class="label">已完成</div></div>
+    </div>
+
+    <div class="actions-bar">
+        <button class="btn btn-primary" onclick="openTaskModal()">+ 新建任务</button>
+        <button class="btn btn-warning" onclick="startPomodoro()">▶ 番茄钟</button>
+        <button class="btn btn-success btn-sm" onclick="batchAction('complete')">✓ 完成</button>
+        <button class="btn btn-muted btn-sm" onclick="batchAction('restore')">↩ 恢复</button>
+        <button class="btn btn-danger btn-sm" onclick="batchAction('delete')">✕ 删除</button>
+        <div style="flex:1;"></div>
+        <select id="viewFilter" onchange="loadTasks()">
+            <option value="uncompleted">未完成</option>
+            <option value="pending">待定</option>
+            <option value="completed">已完成</option>
+        </select>
+        <input type="text" id="searchInput" placeholder="搜索任务..." onkeyup="loadTasks()" style="width:200px;">
+    </div>
+
+    <div class="card" style="overflow-x:auto;">
+        <table>
+            <thead id="tableHead"></thead>
+            <tbody id="taskTableBody"><tr><td colspan="6" style="text-align:center;color:#64748b;padding:40px;">加载中...</td></tr></tbody>
+        </table>
+    </div>
+
+    <!-- 番茄钟面板 -->
+    <div class="pomodoro-panel" id="pomodoroPanel" style="display:none;">
+        <div class="phase" id="pomoPhase" style="text-align:center;font-size:16px;margin-bottom:8px;">🍅 专注时间</div>
+        <div class="timer" id="pomoTimer">00:25</div>
+        <div class="progress-bar"><div class="fill" id="pomoProgress" style="width:100%;"></div></div>
+        <div style="display:flex;gap:8px;justify-content:center;margin-top:12px;">
+            <button class="btn btn-success" id="pomoStart" onclick="pomoStart()">开始</button>
+            <button class="btn btn-warning" id="pomoPause" onclick="pomoPause()" style="display:none;">暂停</button>
+            <button class="btn btn-muted" id="pomoResume" onclick="pomoResume()" style="display:none;">继续</button>
+            <button class="btn btn-danger" onclick="pomoReset()">重置</button>
+        </div>
+        <div style="text-align:center;margin-top:8px;font-size:13px;color:#64748b;" id="pomoStatus">就绪</div>
+        <div style="text-align:center;margin-top:4px;font-size:12px;color:#64748b;" id="pomoTaskInfo"></div>
+    </div>
+</div>
+
+<!-- 任务编辑弹窗 -->
+<div class="modal-overlay" id="taskModalOverlay">
+    <div class="modal">
+        <h3 id="modalTitle">新建任务</h3>
+        <input type="hidden" id="editTaskId">
+        <label>任务标题</label><input type="text" id="taskTitle" placeholder="输入任务标题...">
+        <label>任务描述</label><textarea id="taskDesc" placeholder="可选描述..."></textarea>
+        <label>截止时间</label><input type="text" id="taskDue" placeholder="如: 明天、2026-06-20 18:00">
+        <label>计划日期（可留空）</label><input type="text" id="taskScheduled" placeholder="如: 2026-06-25">
+        <label>优先级</label>
+        <select id="taskPriority"><option value="1">高</option><option value="2">中</option><option value="3" selected>低</option></select>
+        <label>期望番茄数</label><input type="number" id="taskTomato" value="1" min="1" max="20">
+        <div class="actions">
+            <button class="btn btn-muted" onclick="closeTaskModal()">取消</button>
+            <button class="btn btn-primary" onclick="saveTask()">保存</button>
+        </div>
+    </div>
+</div>
+
+<!-- 番茄完成弹窗 -->
+<div class="modal-overlay" id="pomoDoneOverlay">
+    <div class="modal" style="text-align:center;">
+        <h3 style="font-size:20px;" id="pomoDoneTitle">🍅 专注完成！</h3>
+        <div style="font-size:36px;margin:16px 0;" id="pomoDonePoints">+25 积分</div>
+        <div id="pomoDoneLevelUp" style="display:none;color:#f59e0b;font-size:16px;margin-bottom:8px;"></div>
+        <div style="background:rgba(59,130,246,0.1);border-radius:8px;padding:16px;margin:12px 0;font-size:15px;line-height:1.8;color:#e2e8f0;" id="pomoDoneQuote"></div>
+        <div id="pomoDoneTask" style="font-size:13px;color:#22c55e;margin-bottom:8px;display:none;"></div>
+        <div class="actions" style="justify-content:center;">
+            <button class="btn btn-success" onclick="startBreak()" style="font-size:15px;padding:10px 30px;">☕ 开始休息</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let pomoInterval = null, pomoRunning = false, pomoPaused = false;
+let pomoSeconds = 25, pomoTotal = 25, pomoPhase = 'work', pomoWorkCount = 0;
+let pomoTaskId = null, pomoStartTime = null;
+const WORK = 25, SHORT_BREAK = 5, LONG_BREAK = 10;
+
+function loadTasks() {
+    const view = document.getElementById('viewFilter').value;
+    const search = document.getElementById('searchInput').value;
+    fetch(`/api/tasks?view=${view}&search=${encodeURIComponent(search)}`)
+        .then(r => r.json()).then(data => {
+            const thead = document.getElementById('tableHead');
+            const tbody = document.getElementById('taskTableBody');
+            if (data.view === 'uncompleted') {
+                thead.innerHTML = '<tr><th width="60">选择</th><th width="70">优先级</th><th width="90">番茄进度</th><th>任务标题</th><th width="150">截止时间</th><th width="120">操作</th></tr>';
+            } else if (data.view === 'pending') {
+                thead.innerHTML = '<tr><th width="60">选择</th><th width="100">计划进入</th><th width="70">优先级</th><th width="90">番茄进度</th><th>任务标题</th><th width="120">操作</th></tr>';
+            } else {
+                thead.innerHTML = '<tr><th width="60">选择</th><th width="90">番茄进度</th><th>任务标题</th><th width="150">完成时间</th><th width="80">耗时</th><th width="120">操作</th></tr>';
+            }
+            if (!data.tasks || data.tasks.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#64748b;padding:40px;">暂无任务</td></tr>';
+            } else {
+                tbody.innerHTML = data.tasks.map(t => {
+                    let row = `<tr><td><input type="radio" name="selTask" value="${t.id}" onchange="onSelectTask('${t.id}','${t.completed_pomodoros||0}/${t.target_pomodoros||1}')"></td>`;
+                    if (data.view === 'uncompleted') {
+                        row += `<td><span class="badge badge-${t.priority==1?'high':t.priority==2?'medium':'low'}">${t.priority_label}</span></td>`;
+                        row += `<td>${t.completed_pomodoros||0}/${t.target_pomodoros||1}</td>`;
+                        row += `<td>${t.title}</td><td>${t.due_date||'无'}</td>`;
+                    } else if (data.view === 'pending') {
+                        row += `<td>${t.scheduled_date||'无'}</td>`;
+                        row += `<td><span class="badge badge-${t.priority==1?'high':t.priority==2?'medium':'low'}">${t.priority_label}</span></td>`;
+                        row += `<td>${t.completed_pomodoros||0}/${t.target_pomodoros||1}</td>`;
+                        row += `<td>${t.title}</td><td>${t.due_date||'无'}</td>`;
+                    } else {
+                        row += `<td>${t.completed_pomodoros||0}/${t.target_pomodoros||1}</td>`;
+                        row += `<td>${t.title}</td><td>${t.finished_at||'无'}</td><td>${t.cost_display||'0秒'}</td>`;
+                    }
+                    row += `<td style="white-space:nowrap;">`;
+                    if (!t.completed) row += `<button class="btn btn-success btn-sm" onclick="completeTask('${t.id}')">完成</button> `;
+                    row += `<button class="btn btn-muted btn-sm" onclick="editTask('${t.id}')">编辑</button> `;
+                    row += `<button class="btn btn-danger btn-sm" onclick="deleteTask('${t.id}')">删除</button>`;
+                    row += `</td></tr>`;
+                    return row;
+                }).join('');
+            }
+            updateStats();
+        });
+}
+
+function updateStats() {
+    fetch('/api/stats').then(r => r.json()).then(s => {
+        document.querySelectorAll('.stats-grid .value')[0].textContent = s.total;
+        document.querySelectorAll('.stats-grid .value')[1].textContent = s.uncompleted;
+        document.querySelectorAll('.stats-grid .value')[2].textContent = s.pending;
+        document.querySelectorAll('.stats-grid .value')[3].textContent = s.completed;
+    });
+}
+
+function onSelectTask(id, tomato) {
+    pomoTaskId = id;
+    document.getElementById('pomoTaskInfo').textContent = '已选择任务 · 番茄: ' + tomato;
+}
+
+function openTaskModal(taskId) {
+    document.getElementById('modalTitle').textContent = taskId ? '编辑任务' : '新建任务';
+    document.getElementById('editTaskId').value = taskId || '';
+    if (taskId) {
+        fetch(`/api/tasks?view=all&search=`).then(r=>r.json()).then(data => {
+            const t = (data.tasks||[]).find(x => x.id === taskId);
+            if (t) {
+                document.getElementById('taskTitle').value = t.title || '';
+                document.getElementById('taskDesc').value = t.description || '';
+                document.getElementById('taskDue').value = t.due_date_raw || '';
+                document.getElementById('taskScheduled').value = t.scheduled_date_raw || '';
+                document.getElementById('taskPriority').value = t.priority;
+                document.getElementById('taskTomato').value = t.target_pomodoros || 1;
+            }
+        });
+    } else {
+        ['taskTitle','taskDesc','taskDue','taskScheduled'].forEach(id => document.getElementById(id).value = '');
+        document.getElementById('taskPriority').value = '3';
+        document.getElementById('taskTomato').value = '1';
+    }
+    document.getElementById('taskModalOverlay').classList.add('show');
+}
+
+function closeTaskModal() { document.getElementById('taskModalOverlay').classList.remove('show'); }
+
+function saveTask() {
+    const taskId = document.getElementById('editTaskId').value;
+    const payload = {
+        title: document.getElementById('taskTitle').value,
+        description: document.getElementById('taskDesc').value,
+        due_date: document.getElementById('taskDue').value,
+        scheduled_date: document.getElementById('taskScheduled').value,
+        priority: parseInt(document.getElementById('taskPriority').value),
+        target_pomodoros: parseInt(document.getElementById('taskTomato').value)
+    };
+    const url = taskId ? `/api/tasks/${taskId}/edit` : '/api/tasks/new';
+    fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)})
+        .then(r => r.json()).then(data => {
+            if (data.ok) { closeTaskModal(); loadTasks(); }
+            else alert(data.error);
+        });
+}
+
+function editTask(id) { openTaskModal(id); }
+
+function completeTask(id) {
+    const cost = prompt('实际耗时（秒）：', '1500');
+    if (!cost || isNaN(cost) || parseInt(cost) <= 0) return;
+    fetch(`/api/tasks/${id}/complete`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({cost_sec:parseInt(cost)})})
+        .then(r => r.json()).then(data => {
+            if (data.ok) { if (data.quote) alert('任务完成！\n' + data.quote); loadTasks(); }
+            else alert(data.error);
+        });
+}
+
+function deleteTask(id) {
+    if (!confirm('确定删除此任务？')) return;
+    fetch(`/api/tasks/${id}/delete`, {method:'POST'}).then(r => r.json()).then(data => { if (data.ok) loadTasks(); });
+}
+
+function restoreTask(id) {
+    fetch(`/api/tasks/${id}/restore`, {method:'POST'}).then(r => r.json()).then(data => { if (data.ok) loadTasks(); });
+}
+
+function batchAction(action) {
+    const sel = document.querySelector('input[name="selTask"]:checked');
+    if (!sel) { alert('请先选择一个任务'); return; }
+    const id = sel.value;
+    if (action === 'complete') completeTask(id);
+    else if (action === 'restore') restoreTask(id);
+    else if (action === 'delete') deleteTask(id);
+}
+
+// ====== 番茄钟 ======
+function startPomodoro() {
+    if (!pomoTaskId) { alert('请先从任务列表中选择一个任务'); return; }
+    document.getElementById('pomodoroPanel').style.display = 'block';
+    document.getElementById('pomodoroPanel').scrollIntoView({behavior:'smooth'});
+}
+
+function pomoStart() {
+    if (pomoRunning && !pomoPaused) return;
+    if (!pomoPaused) { pomoSeconds = WORK; pomoTotal = WORK; pomoPhase = 'work'; pomoStartTime = new Date().toISOString(); }
+    pomoRunning = true; pomoPaused = false;
+    document.getElementById('pomoStart').style.display = 'none';
+    document.getElementById('pomoPause').style.display = 'inline-block';
+    document.getElementById('pomoResume').style.display = 'none';
+    document.getElementById('pomoStatus').textContent = '计时中...';
+    document.getElementById('pomoPhase').textContent = '🍅 专注时间';
+    updatePomoDisplay(); pomoInterval = setInterval(pomoTick, 1000);
+}
+
+function pomoPause() {
+    pomoPaused = true; clearInterval(pomoInterval);
+    document.getElementById('pomoPause').style.display = 'none';
+    document.getElementById('pomoResume').style.display = 'inline-block';
+    document.getElementById('pomoStatus').textContent = '已暂停';
+}
+
+function pomoResume() {
+    pomoPaused = false;
+    document.getElementById('pomoPause').style.display = 'inline-block';
+    document.getElementById('pomoResume').style.display = 'none';
+    document.getElementById('pomoStatus').textContent = '计时中...';
+    pomoInterval = setInterval(pomoTick, 1000);
+}
+
+function pomoReset() {
+    pomoRunning = false; pomoPaused = false; clearInterval(pomoInterval);
+    pomoSeconds = WORK; pomoTotal = WORK; pomoPhase = 'work'; pomoWorkCount = 0;
+    document.getElementById('pomoStart').style.display = 'inline-block';
+    document.getElementById('pomoPause').style.display = 'none';
+    document.getElementById('pomoResume').style.display = 'none';
+    document.getElementById('pomoPhase').textContent = '🍅 专注时间';
+    document.getElementById('pomoStatus').textContent = '已重置';
+    updatePomoDisplay();
+}
+
+function pomoTick() {
+    if (pomoPaused) return;
+    pomoSeconds--; updatePomoDisplay();
+    if (pomoSeconds <= 0) pomoComplete();
+}
+
+function updatePomoDisplay() {
+    const m = Math.floor(Math.max(pomoSeconds, 0) / 60);
+    const s = Math.max(pomoSeconds, 0) % 60;
+    document.getElementById('pomoTimer').textContent = String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+    document.getElementById('pomoProgress').style.width = (pomoSeconds / pomoTotal * 100) + '%';
+}
+
+let pomoBreakPending = false;
+
+function pomoComplete() {
+    clearInterval(pomoInterval);
+    if (pomoPhase === 'work') {
+        pomoWorkCount++;
+        fetch('/api/pomodoro/complete', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({task_id:pomoTaskId, start_time:pomoStartTime, finish_work_count:pomoWorkCount})
+        }).then(r => r.json()).then(data => {
+            if (data.ok) {
+                // 显示完成弹窗
+                document.getElementById('pomoDonePoints').textContent = '+' + (data.points_earned||25) + ' 积分';
+                document.getElementById('pomoDoneQuote').textContent = data.quote || '';
+                if (data.leveled_up) {
+                    document.getElementById('pomoDoneLevelUp').style.display = 'block';
+                    document.getElementById('pomoDoneLevelUp').textContent = '称号升级：' + data.honor_title + '!';
+                } else {
+                    document.getElementById('pomoDoneLevelUp').style.display = 'none';
+                }
+                if (data.task_completed) {
+                    document.getElementById('pomoDoneTask').style.display = 'block';
+                    document.getElementById('pomoDoneTask').textContent = '任务已自动完成！';
+                    loadTasks();
+                } else {
+                    document.getElementById('pomoDoneTask').style.display = 'none';
+                }
+                document.getElementById('pomoDoneOverlay').classList.add('show');
+                if (Notification.permission === 'granted') new Notification('专注完成', {body:'+' + (data.points_earned||25) + ' 积分'});
+            }
+        });
+        // 切换到休息阶段（暂停等待用户操作）
+        pomoPhase = 'break';
+        pomoSeconds = pomoWorkCount % 2 === 0 ? LONG_BREAK : SHORT_BREAK;
+        pomoTotal = pomoSeconds;
+        pomoBreakPending = true;
+        document.getElementById('pomoTimer').textContent = '--:--';
+        document.getElementById('pomoProgress').style.width = '0%';
+        document.getElementById('pomoPhase').textContent = pomoWorkCount % 2 === 0 ? '☕ 长休息' : '☕ 短休息';
+        document.getElementById('pomoStatus').textContent = '点击"开始休息"按钮继续';
+        document.getElementById('pomoStart').style.display = 'none';
+        document.getElementById('pomoPause').style.display = 'none';
+        document.getElementById('pomoResume').style.display = 'none';
+        return;
+    } else {
+        // 休息结束
+        pomoPhase = 'work'; pomoSeconds = WORK; pomoTotal = WORK;
+        document.getElementById('pomoPhase').textContent = '🍅 专注时间';
+        document.getElementById('pomoStatus').textContent = '休息结束，点击开始新番茄';
+        if (Notification.permission === 'granted') new Notification('休息结束', {body:'自动进入下一轮专注'});
+    }
+    pomoRunning = false;
+    document.getElementById('pomoStart').style.display = 'inline-block';
+    document.getElementById('pomoPause').style.display = 'none';
+    document.getElementById('pomoResume').style.display = 'none';
+    updatePomoDisplay();
+}
+
+function startBreak() {
+    document.getElementById('pomoDoneOverlay').classList.remove('show');
+    if (!pomoBreakPending) return;
+    pomoBreakPending = false;
+    pomoRunning = false; pomoPaused = false;
+    document.getElementById('pomoStart').style.display = 'none';
+    document.getElementById('pomoPause').style.display = 'inline-block';
+    document.getElementById('pomoResume').style.display = 'none';
+    document.getElementById('pomoStatus').textContent = '休息中...';
+    pomoRunning = true; pomoPaused = false;
+    updatePomoDisplay();
+    pomoInterval = setInterval(pomoTick, 1000);
+}
+
+if (Notification.permission === 'default') Notification.requestPermission();
+loadTasks();
+</script>
+{% endblock %}

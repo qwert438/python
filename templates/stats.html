@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}统计 - 智能日程管理器{% endblock %}
+{% block content %}
+<div class="container">
+    <h2 style="font-size:24px;margin-bottom:20px;">📊 统计仪表盘</h2>
+    <div class="stats-grid">
+        <div class="stat-card"><div class="value" style="color:#3b82f6;">{{ stats.total }}</div><div class="label">总任务</div></div>
+        <div class="stat-card"><div class="value" style="color:#22c55e;">{{ stats.completed }}</div><div class="label">已完成</div></div>
+        <div class="stat-card"><div class="value" style="color:#f59e0b;">{{ stats.uncompleted }}</div><div class="label">未完成</div></div>
+        <div class="stat-card"><div class="value" style="color:#8b5cf6;">{{ "%.1f"|format(stats.completion_rate) }}%</div><div class="label">完成率</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:16px;">
+        <div class="card">
+            <div class="card-header">🍅 番茄钟</div>
+            <p style="font-size:14px;color:#e2e8f0;">今日专注: <strong style="color:#3b82f6;">{{ pomo.today_focus_display }}</strong></p>
+            <p style="font-size:14px;color:#e2e8f0;">7天次数: <strong style="color:#f59e0b;">{{ pomo.weekly_count }}</strong></p>
+            <p style="font-size:14px;color:#e2e8f0;">总时长: <strong style="color:#22c55e;">{{ pomo.total_focus_display }}</strong></p>
+        </div>
+        <div class="card">
+            <div class="card-header">🏅 积分与称号</div>
+            <p style="font-size:14px;color:#e2e8f0;">积分: <strong style="color:#3b82f6;">{{ points_info.points }}</strong></p>
+            <p style="font-size:14px;color:#e2e8f0;">称号: <strong style="color:#22c55e;">{{ points_info.title }}</strong></p>
+            <p style="font-size:14px;color:#e2e8f0;">{% if points_info.next_title %}距「{{ points_info.next_title }}」还需 <strong style="color:#f59e0b;">{{ points_info.points_to_next }}</strong> 积分{% else %}已获得最高称号 🎉{% endif %}</p>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-header">📈 效率统计图表</div>
+        <img src="/api/chart/dashboard.png?t={{ t }}" style="width:100%;border-radius:8px;" alt="统计图表" onerror="this.alt='图表生成中...'">
+    </div>
+</div>
+{% endblock %}

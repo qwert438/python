@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}称号总览 - 智能日程管理器{% endblock %}
+{% block content %}
+<div class="container" style="max-width:700px;">
+    <h2 style="font-size:24px;margin-bottom:8px;">🏅 称号总览</h2>
+    <p style="color:#64748b;margin-bottom:20px;">当前 <strong style="color:#3b82f6;">{{ points }}</strong> 积分 · 称号：<strong style="color:#22c55e;">{{ title }}</strong> · 每完成 1 个番茄 +25 积分</p>
+    <div class="card">
+        <table>
+            <thead><tr><th width="180">称号</th><th width="100">所需积分</th><th>状态</th></tr></thead>
+            <tbody>
+                {% for threshold, name in honor_levels %}
+                <tr>
+                    <td style="font-weight:600;">{{ name }}</td>
+                    <td>{{ threshold }}</td>
+                    <td>
+                        {% if name == title %}<span class="badge badge-honor" style="background:rgba(59,130,246,0.3);">⭐ 当前称号</span>
+                        {% elif points >= threshold %}<span class="badge" style="background:rgba(34,197,94,0.15);color:#22c55e;">✅ 已获得</span>
+                        {% else %}<span style="color:#64748b;">🔒 还需 {{ threshold - points }} 积分</span>{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+{% block title %}{% if viewing %}{{ viewing }} 的番茄{% else %}我的番茄{% endif %} - 智能日程管理器{% endblock %}
+{% block extra_head %}
+<style>
+.plant-scene {
+    max-width: 700px; margin: 0 auto; padding: 30px 20px;
+    text-align: center;
+}
+.plant-title {
+    font-size: 24px; font-weight: 700; color: #f1f5f9; margin-bottom: 4px;
+}
+.plant-owner {
+    font-size: 14px; color: #64748b; margin-bottom: 24px;
+}
+
+/* 花盆 + SVG 树容器 */
+.tree-wrapper {
+    position: relative; width: 200px; height: 320px; margin: 0 auto 24px;
+}
+.tree-wrapper svg {
+    width: 100%; height: 100%;
+}
+
+/* 信息面板 */
+.info-panel {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+    max-width: 500px; margin: 0 auto 16px;
+}
+.info-card {
+    background: rgba(30,41,59,0.7); border: 1px solid #334155;
+    border-radius: 12px; padding: 14px; text-align: center;
+}
+.info-card .val { font-size: 22px; font-weight: 700; }
+.info-card .lbl { font-size: 11px; color: #64748b; margin-top: 3px; }
+.info-card.water .val { color: #3b82f6; }
+.info-card.fert .val { color: #a855f7; }
+.info-card.growth .val { color: #22c55e; }
+
+/* 进度条 */
+.progress-wrap { max-width: 500px; margin: 0 auto 18px; text-align: left; }
+.progress-wrap .label { font-size: 12px; color: #64748b; margin-bottom: 4px; }
+.progress-wrap .label span { float: right; }
+.progress-bar {
+    background: #334155; border-radius: 8px; height: 10px; overflow: hidden;
+}
+.progress-bar .fill {
+    height: 100%; border-radius: 8px; transition: width 0.8s;
+    background: linear-gradient(90deg, #22c55e, #4ade80);
+}
+
+/* 阶段时间线 */
+.timeline {
+    display: flex; justify-content: space-between; max-width: 500px;
+    margin: 0 auto 20px;
+}
+.timeline .dot {
+    width: 14px; height: 14px; border-radius: 50%; text-align: center;
+    transition: all 0.5s;
+}
+.timeline .dot.done { background: #22c55e; box-shadow: 0 0 8px rgba(34,197,94,0.5); }
+.timeline .dot.current { background: #3b82f6; box-shadow: 0 0 12px rgba(59,130,246,0.6); animation: pulse 1.5s infinite; }
+.timeline .dot.future { background: #334155; }
+@keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.3); } }
+.timeline .dot-label { font-size: 10px; color: #64748b; margin-top: 4px; white-space: nowrap; }
+
+/* 操作按钮 */
+.actions-row {
+    display: flex; justify-content: center; gap: 12px; margin-top: 16px;
+}
+.action-btn {
+    padding: 10px 22px; border-radius: 10px; border: none; cursor: pointer;
+    font-size: 14px; font-family: inherit; font-weight: 600;
+    transition: all 0.2s;
+}
+.action-btn.water { background: #3b82f6; color: #fff; }
+.action-btn.water:hover { background: #2563eb; }
+.action-btn.fertilize { background: #a855f7; color: #fff; }
+.action-btn.fertilize:hover { background: #9333ea; }
+.action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.msg-toast {
+    position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
+    background: #22c55e; color: #fff; padding: 10px 24px; border-radius: 10px;
+    font-size: 14px; z-index: 100; display: none;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+.msg-toast.error { background: #ef4444; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="plant-scene">
+    <div class="plant-title">
+        {% if viewing %}🍅 {{ viewing }} 的番茄园{% else %}🍅 我的番茄园{% endif %}
+    </div>
+    <div class="plant-owner">
+        {% if viewing %}正在查看 {{ viewing }} 的培养成果{% else %}用积分浇灌属于你的番茄树{% endif %}
+    </div>
+
+    <!-- 番茄树 SVG -->
+    <div class="tree-wrapper" id="treeWrapper">
+        {% set s = plant.stage_idx %}
+        {% set sh = [35, 90, 150, 200, 260, 290, 310][s] %}
+        {% set sw = [4, 5, 6, 8, 10, 12, 14][s] %}
+        <svg viewBox="0 0 200 320" id="treeSvg">
+            <defs>
+                <radialGradient id="fgA" cx="35%" cy="30%"><stop offset="0%" stop-color="#ff6b6b"/><stop offset="100%" stop-color="#dc2626"/></radialGradient>
+                <radialGradient id="fgB" cx="35%" cy="30%"><stop offset="0%" stop-color="#ff9999"/><stop offset="100%" stop-color="#e04444"/></radialGradient>
+                <linearGradient id="potG" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#d97706"/><stop offset="100%" stop-color="#78350f"/></linearGradient>
+            </defs>
+            <!-- 土壤 -->
+            <ellipse cx="100" cy="280" rx="55" ry="13" fill="#3d2618"/>
+            <!-- 花盆 -->
+            <rect x="28" y="262" width="144" height="56" rx="10" fill="url(#potG)"/>
+            <rect x="18" y="248" width="164" height="16" rx="6" fill="#f97316"/>
+            <!-- 主干 -->
+            {% if s >= 1 %}
+            <line x1="100" y1="248" x2="100" y2="{{ 248 - sh }}" stroke="#15803d" stroke-width="{{ sw }}" stroke-linecap="round"/>
+            {% endif %}
+            <!-- 侧枝（s>=4） -->
+            {% if s >= 4 %}
+            <line x1="100" y1="{{ 248 - sh * 0.52 }}" x2="48" y2="{{ 248 - sh * 0.82 }}" stroke="#16a34a" stroke-width="{{ sw - 3 }}" stroke-linecap="round"/>
+            <line x1="100" y1="{{ 248 - sh * 0.58 }}" x2="158" y2="{{ 248 - sh * 0.88 }}" stroke="#16a34a" stroke-width="{{ sw - 3 }}" stroke-linecap="round"/>
+            {% endif %}
+            {% if s >= 5 %}
+            <line x1="100" y1="{{ 248 - sh * 0.38 }}" x2="60" y2="{{ 248 - sh * 0.65 }}" stroke="#22c55e" stroke-width="{{ sw - 5 }}" stroke-linecap="round"/>
+            <line x1="100" y1="{{ 248 - sh * 0.42 }}" x2="145" y2="{{ 248 - sh * 0.70 }}" stroke="#22c55e" stroke-width="{{ sw - 5 }}" stroke-linecap="round"/>
+            {% endif %}
+            {% if s >= 6 %}
+            <line x1="100" y1="{{ 248 - sh * 0.30 }}" x2="72" y2="{{ 248 - sh * 0.52 }}" stroke="#4ade80" stroke-width="3" stroke-linecap="round"/>
+            <line x1="100" y1="{{ 248 - sh * 0.34 }}" x2="132" y2="{{ 248 - sh * 0.56 }}" stroke="#4ade80" stroke-width="3" stroke-linecap="round"/>
+            {% endif %}
+            <!-- 叶子 -->
+            {% if s >= 2 %}
+            <ellipse cx="82" cy="{{ 248 - sh * 0.15 }}" rx="16" ry="8" fill="#22c55e" transform="rotate(-20,82,{{ 248 - sh * 0.15 }})"/>
+            <ellipse cx="118" cy="{{ 248 - sh * 0.13 }}" rx="14" ry="7" fill="#22c55e" transform="rotate(15,118,{{ 248 - sh * 0.13 }})"/>
+            {% endif %}
+            {% if s >= 3 %}
+            <ellipse cx="80" cy="{{ 248 - sh * 0.30 }}" rx="18" ry="9" fill="#22c55e" transform="rotate(-18,80,{{ 248 - sh * 0.30 }})"/>
+            <ellipse cx="120" cy="{{ 248 - sh * 0.28 }}" rx="16" ry="8" fill="#22c55e" transform="rotate(16,120,{{ 248 - sh * 0.28 }})"/>
+            <ellipse cx="84" cy="{{ 248 - sh * 0.48 }}" rx="15" ry="7" fill="#4ade80" transform="rotate(-12,84,{{ 248 - sh * 0.48 }})"/>
+            <ellipse cx="116" cy="{{ 248 - sh * 0.46 }}" rx="14" ry="7" fill="#4ade80" transform="rotate(10,116,{{ 248 - sh * 0.46 }})"/>
+            {% endif %}
+            {% if s >= 4 %}
+            <ellipse cx="38" cy="{{ 248 - sh * 0.88 }}" rx="20" ry="10" fill="#15803d" transform="rotate(-25,38,{{ 248 - sh * 0.88 }})"/>
+            <ellipse cx="168" cy="{{ 248 - sh * 0.92 }}" rx="18" ry="9" fill="#15803d" transform="rotate(20,168,{{ 248 - sh * 0.92 }})"/>
+            <ellipse cx="78" cy="{{ 248 - sh * 0.65 }}" rx="14" ry="7" fill="#86efac" transform="rotate(-8,78,{{ 248 - sh * 0.65 }})"/>
+            <ellipse cx="122" cy="{{ 248 - sh * 0.63 }}" rx="13" ry="6" fill="#86efac" transform="rotate(6,122,{{ 248 - sh * 0.63 }})"/>
+            {% endif %}
+            <!-- 花朵 -->
+            {% if s >= 5 %}
+            <circle cx="44" cy="{{ 248 - sh * 0.90 }}" r="8" fill="#fde68a" opacity="0.85"/><circle cx="44" cy="{{ 248 - sh * 0.90 }}" r="4" fill="#f59e0b"/>
+            <circle cx="162" cy="{{ 248 - sh * 0.94 }}" r="7" fill="#fde68a" opacity="0.85"/><circle cx="162" cy="{{ 248 - sh * 0.94 }}" r="3.5" fill="#f59e0b"/>
+            <circle cx="100" cy="{{ 248 - sh - 8 }}" r="8" fill="#fde68a" opacity="0.8"/><circle cx="100" cy="{{ 248 - sh - 8 }}" r="4" fill="#f59e0b"/>
+            {% endif %}
+            <!-- 果实 -->
+            {% if s >= 6 %}
+            <circle cx="36" cy="{{ 248 - sh * 0.82 }}" r="9" fill="url(#fgA)"/><line x1="36" y1="{{ 248 - sh * 0.82 - 9 }}" x2="36" y2="{{ 248 - sh * 0.82 - 6 }}" stroke="#22c55e" stroke-width="2"/>
+            <circle cx="170" cy="{{ 248 - sh * 0.86 }}" r="8" fill="url(#fgA)"/><line x1="170" y1="{{ 248 - sh * 0.86 - 8 }}" x2="170" y2="{{ 248 - sh * 0.86 - 5 }}" stroke="#22c55e" stroke-width="2"/>
+            <circle cx="55" cy="{{ 248 - sh * 0.68 }}" r="7" fill="url(#fgB)"/><line x1="55" y1="{{ 248 - sh * 0.68 - 7 }}" x2="55" y2="{{ 248 - sh * 0.68 - 4 }}" stroke="#22c55e" stroke-width="1.5"/>
+            <circle cx="148" cy="{{ 248 - sh * 0.72 }}" r="7" fill="url(#fgA)"/><line x1="148" y1="{{ 248 - sh * 0.72 - 7 }}" x2="148" y2="{{ 248 - sh * 0.72 - 4 }}" stroke="#22c55e" stroke-width="1.5"/>
+            <circle cx="90" cy="{{ 248 - sh - 2 }}" r="8" fill="url(#fgA)"/><line x1="90" y1="{{ 248 - sh - 10 }}" x2="90" y2="{{ 248 - sh - 6 }}" stroke="#22c55e" stroke-width="2"/>
+            {% endif %}
+        </svg>
+    </div>
+
+    <!-- 信息面板 -->
+    <div class="info-panel">
+        <div class="info-card water">
+            <div class="val" id="waterVal">{{ plant.water }}%</div>
+            <div class="lbl">💧 水分</div>
+        </div>
+        <div class="info-card fert">
+            <div class="val" id="fertVal">{{ plant.fertilizer }}%</div>
+            <div class="lbl">🧪 肥料</div>
+        </div>
+        <div class="info-card growth">
+            <div class="val" id="growthVal">{{ plant.growth }}</div>
+            <div class="lbl">📈 生长值</div>
+        </div>
+    </div>
+
+    <!-- 当前阶段进度 -->
+    <div class="progress-wrap">
+        <div class="label">
+            {{ plant.stage_icon }} {{ plant.stage_name }}
+            <span id="progressLabel">{{ plant.progress }}%</span>
+        </div>
+        <div class="progress-bar">
+            <div class="fill" id="progressFill" style="width:{{ plant.progress }}%;"></div>
+        </div>
+    </div>
+
+    <!-- 阶段时间线 -->
+    <div class="timeline">
+        {% for st in plant.stages %}
+        <div style="text-align:center;">
+            <div class="dot {% if plant.stage_idx > loop.index0 %}done{% elif plant.stage_idx == loop.index0 %}current{% else %}future{% endif %}">
+                {{ st.icon }}
+            </div>
+            <div class="dot-label">{{ st.name }}<br>{{ st.threshold }}</div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- 操作按钮（仅自己可操作） -->
+    <div style="text-align:center;margin-top:10px;">
+        <a href="/plant-guide" style="color:#64748b;font-size:12px;text-decoration:none;">📖 查看番茄培养图鉴 →</a>
+    </div>
+
+    {% if not viewing %}
+    <div class="actions-row">
+        <button class="action-btn water" id="btnWater" onclick="doWater()" {% if plant_points < 5 %}disabled{% endif %}>
+            💧 浇水 (-5)
+        </button>
+        <button class="action-btn fertilize" id="btnFert" onclick="doFertilize()" {% if plant_points < 10 %}disabled{% endif %}>
+            🧪 施肥 (-10)
+        </button>
+        <button class="action-btn fertilize" id="btnSun" onclick="doSun()" {% if plant_points < 20 %}disabled{% endif %}" style="background:#f59e0b;color:#fff;">
+            ☀️ 晒太阳 (-20)
+        </button>
+    </div>
+    <div style="text-align:center;margin-top:10px;font-size:12px;color:#64748b;">
+        培养积分：<strong style="color:#22c55e;" id="availPoints">{{ plant_points }}</strong>
+        &nbsp;|&nbsp; 排名积分：<strong style="color:#3b82f6;">{{ honor_points }}</strong>
+        &nbsp;|&nbsp; <span style="color:#64748b;">消耗培养积分不影响排名和称号</span>
+    </div>
+    {% else %}
+    <div style="text-align:center;margin-top:16px;color:#64748b;font-size:13px;">
+        已为番茄投入 <strong style="color:#f59e0b;">{{ plant.spent }}</strong> 培养积分
+        &nbsp;|&nbsp; 排名积分：<strong style="color:#3b82f6;">{{ honor_points }}</strong>
+    </div>
+    {% endif %}
+</div>
+
+<div class="msg-toast" id="toast"></div>
+
+{% if not viewing %}
+<script>
+function showToast(msg, isError) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.className = 'msg-toast' + (isError ? ' error' : '');
+    t.style.display = 'block';
+    setTimeout(function() { t.style.display = 'none'; }, 2000);
+}
+
+function updateUI(plant, plantPts) {
+    document.getElementById('waterVal').textContent = plant.water + '%';
+    document.getElementById('fertVal').textContent = plant.fertilizer + '%';
+    document.getElementById('growthVal').textContent = plant.growth;
+    document.getElementById('progressLabel').textContent = plant.progress + '%';
+    document.getElementById('progressFill').style.width = plant.progress + '%';
+    document.getElementById('availPoints').textContent = plantPts;
+    document.getElementById('btnWater').disabled = plantPts < 5;
+    document.getElementById('btnFert').disabled = plantPts < 10;
+    document.getElementById('btnSun').disabled = plantPts < 20;
+    location.reload();
+}
+
+function doWater() {
+    fetch('/api/plant/water', {method:'POST'}).then(r => r.json()).then(data => {
+        if (data.ok) { showToast(data.msg || '浇水成功！'); updateUI(data.plant, data.plant_points); }
+        else showToast(data.error, true);
+    });
+}
+
+function doFertilize() {
+    fetch('/api/plant/fertilize', {method:'POST'}).then(r => r.json()).then(data => {
+        if (data.ok) { showToast(data.msg || '施肥成功！'); updateUI(data.plant, data.plant_points); }
+        else showToast(data.error, true);
+    });
+}
+
+function doSun() {
+    fetch('/api/plant/sun', {method:'POST'}).then(r => r.json()).then(data => {
+        if (data.ok) { showToast(data.msg || '晒太阳成功！'); updateUI(data.plant, data.plant_points); }
+        else showToast(data.error, true);
+    });
+}
+</script>
+{% endif %}
+{% endblock %}

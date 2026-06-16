@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}注销账号 - 智能日程管理器{% endblock %}
+{% block content %}
+<div class="container" style="max-width:500px;margin-top:60px;">
+    <div class="card">
+        <h2 style="margin-bottom:8px;font-size:20px;color:#ef4444;">⚠️ 注销账号</h2>
+        <p style="color:#94a3b8;margin-bottom:20px;font-size:13px;">
+            账号「<strong>{{ session.username }}</strong>」将从服务器永久删除，并删除本机该账号的任务、番茄记录和积分数据。<strong>此操作不可恢复。</strong>
+        </p>
+        <form method="POST">
+            <label>请输入当前账号密码以确认</label>
+            <input type="password" name="password" required placeholder="密码" style="margin-bottom:20px;">
+            {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+            <div style="display:flex;gap:8px;">
+                <button type="submit" class="btn btn-danger" style="flex:1;">永久注销</button>
+                <a href="/" class="btn btn-muted" style="flex:1;text-align:center;">取消</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

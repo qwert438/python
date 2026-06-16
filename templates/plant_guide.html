@@ -1,0 +1,457 @@
+{% extends "base.html" %}
+{% block title %}番茄培养图鉴 - 智能日程管理器{% endblock %}
+{% block extra_head %}
+<style>
+.guide-header { text-align:center; padding:30px 20px 10px; }
+.guide-header h1 { font-size:28px; color:#f1f5f9; margin-bottom:6px; }
+.guide-header p { color:#64748b; font-size:14px; }
+
+.stages-grid {
+    display:flex; flex-direction:column; gap:32px;
+    max-width:960px; margin:0 auto; padding:20px;
+}
+
+.stage-card {
+    display:flex; gap:32px; align-items:center;
+    background:rgba(30,41,59,0.55); border:1px solid #334155;
+    border-radius:18px; padding:28px 32px;
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+.stage-card:hover {
+    transform:translateY(-5px);
+    box-shadow:0 14px 44px rgba(0,0,0,0.35), 0 0 0 1px var(--sc);
+}
+
+/* ---- 番茄树预览 (SVG) ---- */
+.tree-preview {
+    flex-shrink:0; width:200px; height:260px;
+    position:relative;
+    display:flex; flex-direction:column; align-items:center; justify-content:flex-end;
+}
+.tree-preview svg {
+    position:absolute; bottom:0; left:50%; transform:translateX(-50%);
+}
+/* 花盆 */
+.preview-pot {
+    width:100px; height:48px; z-index:2; position:relative;
+    background:linear-gradient(180deg, #d97706 0%, #b45309 30%, #92400e 70%, #78350f 100%);
+    border-radius:6px 6px 20px 20px;
+    box-shadow:0 6px 20px rgba(0,0,0,0.35), inset 0 1px 3px rgba(255,255,255,0.2);
+}
+.preview-pot::before {
+    content:''; position:absolute; top:-10px; left:-7px;
+    width:114px; height:14px;
+    background:linear-gradient(180deg, #f97316, #d97706);
+    border-radius:5px;
+    box-shadow:0 2px 6px rgba(0,0,0,0.2);
+}
+.preview-soil {
+    width:88px; height:16px; z-index:1; margin-bottom:-6px;
+    background:linear-gradient(180deg, #5c3d2e, #3d2618); border-radius:50%;
+}
+
+/* 信息 */
+.stage-info { flex:1; min-width:0; }
+.stage-info .si-icon { font-size:44px; margin-bottom:6px; }
+.stage-info .si-name { font-size:22px; font-weight:700; color:#f1f5f9; margin-bottom:4px; }
+.stage-info .si-th { font-size:13px; color:#3b82f6; margin-bottom:10px; }
+.stage-info .si-th span { background:rgba(59,130,246,0.12); padding:3px 12px; border-radius:8px; }
+.stage-info .si-desc { font-size:14px; color:#94a3b8; line-height:1.75; }
+.stage-stats { display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; }
+.stage-stats .tag {
+    font-size:11px; padding:3px 10px; border-radius:6px;
+    background:rgba(255,255,255,0.04); color:#94a3b8;
+}
+.stage-arrow { text-align:center; color:#334155; font-size:26px; margin:-12px 0; }
+
+@media(max-width:640px){ .stage-card{flex-direction:column;text-align:center;} }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="guide-header">
+    <h1>🍅 番茄培养图鉴</h1>
+    <p>从一颗种子到硕果累累 — 七大阶段的完整成长历程</p>
+</div>
+
+<div class="stages-grid">
+
+    <!-- 阶段1：种子 -->
+    <div class="stage-card" style="--sc:#8b7355;">
+        <div class="tree-preview">
+            <svg width="140" height="220" viewBox="0 0 140 220">
+                <ellipse cx="70" cy="185" rx="44" ry="10" fill="#3d2618"/><!-- 土壤 -->
+                <rect x="20" y="170" width="100" height="50" rx="6" fill="url(#potGrad)"/><!-- 花盆 -->
+                <rect x="14" y="160" width="112" height="14" rx="4" fill="#f97316"/><!-- 盆沿 -->
+                <ellipse cx="70" cy="175" rx="22" ry="4" fill="#5c2d0e" opacity="0.5"/><!-- 种子 -->
+                <text x="70" y="195" text-anchor="middle" fill="#fff" font-size="22">🌰</text>
+                <defs>
+                    <linearGradient id="potGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="#d97706"/><stop offset="100%" stop-color="#78350f"/>
+                    </linearGradient>
+                </defs>
+            </svg>
+            <div class="preview-pot"></div>
+        </div>
+        <div class="stage-info">
+            <div class="si-icon">🌰</div>
+            <div class="si-name">种子</div>
+            <div class="si-th"><span>生长值 ≥ 0</span></div>
+            <div class="si-desc">一颗小小的番茄种子埋入肥沃的土壤中，在黑暗里静静等待。需要水分和养分才能破土而出，开启生命的旅程。</div>
+            <div class="stage-stats"><span class="tag">📏 埋于土下</span></div>
+        </div>
+    </div>
+
+    <div class="stage-arrow">⬇</div>
+
+    <!-- 阶段2：发芽 -->
+    <div class="stage-card" style="--sc:#7cb342;">
+        <div class="tree-preview">
+            <svg width="140" height="220" viewBox="0 0 140 220">
+                <ellipse cx="70" cy="185" rx="44" ry="10" fill="#3d2618"/>
+                <rect x="20" y="170" width="100" height="50" rx="6" fill="url(#potGrad)"/>
+                <rect x="14" y="160" width="112" height="14" rx="4" fill="#f97316"/>
+                <line x1="70" y1="165" x2="70" y2="120" stroke="#4ade80" stroke-width="4" stroke-linecap="round"/>
+                <ellipse cx="52" cy="125" rx="16" ry="8" fill="#22c55e" transform="rotate(-20,52,125)"/>
+                <ellipse cx="88" cy="128" rx="14" ry="7" fill="#22c55e" transform="rotate(15,88,128)"/>
+            </svg>
+            <div class="preview-pot"></div>
+        </div>
+        <div class="stage-info">
+            <div class="si-icon">🌱</div>
+            <div class="si-name">发芽</div>
+            <div class="si-th"><span>生长值 ≥ 50</span></div>
+            <div class="si-desc">嫩绿的芽尖冲破土壤向阳光伸展，两片子叶娇嫩欲滴。这是生命的第一次呼吸，脆弱但充满希望。</div>
+            <div class="stage-stats"><span class="tag">🌿 2 片叶</span><span class="tag">📏 约 5cm</span></div>
+        </div>
+    </div>
+
+    <div class="stage-arrow">⬇</div>
+
+    <!-- 阶段3：幼苗 -->
+    <div class="stage-card" style="--sc:#689f38;">
+        <div class="tree-preview">
+            <svg width="140" height="220" viewBox="0 0 140 220">
+                <ellipse cx="70" cy="185" rx="44" ry="10" fill="#3d2618"/>
+                <rect x="20" y="170" width="100" height="50" rx="6" fill="url(#potGrad)"/>
+                <rect x="14" y="160" width="112" height="14" rx="4" fill="#f97316"/>
+                <line x1="70" y1="165" x2="70" y2="95" stroke="#16a34a" stroke-width="5" stroke-linecap="round"/>
+                <ellipse cx="48" cy="130" rx="18" ry="9" fill="#22c55e" transform="rotate(-25,48,130)"/>
+                <ellipse cx="92" cy="133" rx="16" ry="8" fill="#22c55e" transform="rotate(20,92,133)"/>
+                <ellipse cx="50" cy="108" rx="16" ry="8" fill="#4ade80" transform="rotate(-18,50,108)"/>
+                <ellipse cx="90" cy="110" rx="15" ry="7" fill="#4ade80" transform="rotate(15,90,110)"/>
+            </svg>
+            <div class="preview-pot"></div>
+        </div>
+        <div class="stage-info">
+            <div class="si-icon">🌿</div>
+            <div class="si-name">幼苗</div>
+            <div class="si-th"><span>生长值 ≥ 150</span></div>
+            <div class="si-desc">茎秆逐渐粗壮，四片真叶完全展开。根系深入土壤，开始独立吸收养分，进入快速生长期。</div>
+            <div class="stage-stats"><span class="tag">🌿 4 片叶</span><span class="tag">📏 约 15cm</span></div>
+        </div>
+    </div>
+
+    <div class="stage-arrow">⬇</div>
+
+    <!-- 阶段4：成长 -->
+    <div class="stage-card" style="--sc:#4caf50;">
+        <div class="tree-preview">
+            <svg width="140" height="240" viewBox="0 0 140 240">
+                <ellipse cx="70" cy="205" rx="46" ry="10" fill="#3d2618"/>
+                <rect x="18" y="190" width="104" height="50" rx="6" fill="url(#potGrad)"/>
+                <rect x="12" y="180" width="116" height="14" rx="4" fill="#f97316"/>
+                <line x1="70" y1="182" x2="70" y2="55" stroke="#16a34a" stroke-width="6" stroke-linecap="round"/>
+                <line x1="70" y1="110" x2="48" y2="85" stroke="#16a34a" stroke-width="4" stroke-linecap="round"/>
+                <line x1="70" y1="100" x2="94" y2="78" stroke="#16a34a" stroke-width="4" stroke-linecap="round"/>
+                <ellipse cx="42" cy="80" rx="22" ry="11" fill="#15803d" transform="rotate(-30,42,80)"/>
+                <ellipse cx="100" cy="72" rx="20" ry="10" fill="#15803d" transform="rotate(25,100,72)"/>
+                <ellipse cx="48" cy="125" rx="18" ry="9" fill="#22c55e" transform="rotate(-20,48,125)"/>
+                <ellipse cx="92" cy="130" rx="17" ry="8" fill="#22c55e" transform="rotate(18,92,130)"/>
+                <ellipse cx="52" cy="150" rx="16" ry="8" fill="#4ade80" transform="rotate(-15,52,150)"/>
+                <ellipse cx="88" cy="155" rx="15" ry="7" fill="#4ade80" transform="rotate(12,88,155)"/>
+            </svg>
+            <div class="preview-pot"></div>
+        </div>
+        <div class="stage-info">
+            <div class="si-icon">🪴</div>
+            <div class="si-name">成长</div>
+            <div class="si-th"><span>生长值 ≥ 300</span></div>
+            <div class="si-desc">植株茁壮成长，主干挺拔粗壮，两条侧枝向外伸展。枝繁叶茂，为开花结果积蓄充足的力量。</div>
+            <div class="stage-stats"><span class="tag">🌿 6 片叶</span><span class="tag">🌿 2 侧枝</span><span class="tag">📏 约 40cm</span></div>
+        </div>
+    </div>
+
+    <div class="stage-arrow">⬇</div>
+
+    <!-- 阶段5：开花 -->
+    <div class="stage-card" style="--sc:#fdd835;">
+        <div class="tree-preview">
+            <svg width="160" height="260" viewBox="0 0 160 260">
+                <ellipse cx="80" cy="222" rx="50" ry="12" fill="#3d2618"/>
+                <rect x="22" y="206" width="116" height="54" rx="8" fill="url(#potGrad2)"/>
+                <rect x="14" y="194" width="132" height="16" rx="5" fill="#f97316"/>
+                <line x1="80" y1="196" x2="80" y2="40" stroke="#16a34a" stroke-width="8" stroke-linecap="round"/>
+                <line x1="80" y1="120" x2="50" y2="75" stroke="#16a34a" stroke-width="5" stroke-linecap="round"/>
+                <line x1="80" y1="105" x2="115" y2="65" stroke="#16a34a" stroke-width="5" stroke-linecap="round"/>
+                <line x1="80" y1="140" x2="55" y2="110" stroke="#22c55e" stroke-width="3" stroke-linecap="round"/>
+                <line x1="80" y1="130" x2="105" y2="100" stroke="#22c55e" stroke-width="3" stroke-linecap="round"/>
+                <ellipse cx="38" cy="72" rx="22" ry="10" fill="#15803d" transform="rotate(-25,38,72)"/>
+                <ellipse cx="128" cy="60" rx="20" ry="10" fill="#15803d" transform="rotate(22,128,60)"/>
+                <ellipse cx="48" cy="108" rx="18" ry="9" fill="#22c55e" transform="rotate(-18,48,108)"/>
+                <ellipse cx="112" cy="96" rx="17" ry="8" fill="#22c55e" transform="rotate(16,112,96)"/>
+                <ellipse cx="44" cy="138" rx="16" ry="8" fill="#4ade80" transform="rotate(-15,44,138)"/>
+                <ellipse cx="114" cy="132" rx="15" ry="7" fill="#4ade80" transform="rotate(12,114,132)"/>
+                <ellipse cx="70" cy="155" rx="14" ry="7" fill="#4ade80" transform="rotate(-8,70,155)"/>
+                <circle cx="48" cy="62" r="9" fill="#fde68a" opacity="0.9"/>
+                <circle cx="48" cy="62" r="5" fill="#f59e0b"/>
+                <circle cx="125" cy="52" r="8" fill="#fde68a" opacity="0.9"/>
+                <circle cx="125" cy="52" r="4" fill="#f59e0b"/>
+                <circle cx="70" cy="35" r="9" fill="#fde68a" opacity="0.9"/>
+                <circle cx="70" cy="35" r="5" fill="#f59e0b"/>
+                <defs>
+                    <linearGradient id="potGrad2" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="#d97706"/><stop offset="100%" stop-color="#78350f"/>
+                    </linearGradient>
+                </defs>
+            </svg>
+            <div class="preview-pot"></div>
+        </div>
+        <div class="stage-info">
+            <div class="si-icon">🌼</div>
+            <div class="si-name">开花</div>
+            <div class="si-th"><span>生长值 ≥ 500</span></div>
+            <div class="si-desc">金黄色的番茄花在枝头次第绽放，淡雅的花香引来蜜蜂穿梭授粉。每一朵花都孕育着一个未来的果实。</div>
+            <div class="stage-stats"><span class="tag">🌿 8 片叶</span><span class="tag">🌼 3 朵花</span><span class="tag">📏 约 65cm</span></div>
+        </div>
+    </div>
+
+    <div class="stage-arrow">⬇</div>
+
+    <!-- 阶段6：结果 -->
+    <div class="stage-card" style="--sc:#f4511e;">
+        <div class="tree-preview">
+            <svg width="180" height="280" viewBox="0 0 180 280">
+                <ellipse cx="90" cy="240" rx="54" ry="12" fill="#3d2618"/>
+                <rect x="26" y="222" width="128" height="56" rx="8" fill="url(#potGrad2)"/>
+                <rect x="16" y="208" width="148" height="16" rx="6" fill="#f97316"/>
+                <line x1="90" y1="210" x2="90" y2="38" stroke="#15803d" stroke-width="10" stroke-linecap="round"/>
+                <line x1="90" y1="130" x2="52" y2="68" stroke="#16a34a" stroke-width="6" stroke-linecap="round"/>
+                <line x1="90" y1="110" x2="132" y2="55" stroke="#16a34a" stroke-width="6" stroke-linecap="round"/>
+                <line x1="90" y1="155" x2="58" y2="105" stroke="#22c55e" stroke-width="4" stroke-linecap="round"/>
+                <line x1="90" y1="142" x2="125" y2="95" stroke="#22c55e" stroke-width="4" stroke-linecap="round"/>
+                <line x1="90" y1="170" x2="65" y2="140" stroke="#4ade80" stroke-width="3" stroke-linecap="round"/>
+                <line x1="90" y1="162" x2="118" y2="132" stroke="#4ade80" stroke-width="3" stroke-linecap="round"/>
+                <ellipse cx="34" cy="62" rx="24" ry="12" fill="#15803d" transform="rotate(-28,34,62)"/>
+                <ellipse cx="150" cy="48" rx="22" ry="11" fill="#15803d" transform="rotate(22,150,48)"/>
+                <ellipse cx="46" cy="100" rx="20" ry="10" fill="#22c55e" transform="rotate(-20,46,100)"/>
+                <ellipse cx="138" cy="88" rx="18" ry="9" fill="#22c55e" transform="rotate(18,138,88)"/>
+                <ellipse cx="50" cy="138" rx="17" ry="8" fill="#4ade80" transform="rotate(-15,50,138)"/>
+                <ellipse cx="132" cy="126" rx="16" ry="8" fill="#4ade80" transform="rotate(14,132,126)"/>
+                <ellipse cx="60" cy="160" rx="15" ry="7" fill="#86efac" transform="rotate(-10,60,160)"/>
+                <ellipse cx="124" cy="150" rx="14" ry="7" fill="#86efac" transform="rotate(8,124,150)"/>
+                <circle cx="48" cy="58" r="8" fill="#fde68a" opacity="0.8"/>
+                <circle cx="48" cy="58" r="4" fill="#f59e0b"/>
+                <circle cx="140" cy="45" r="7" fill="#fde68a" opacity="0.8"/>
+                <circle cx="140" cy="45" r="3.5" fill="#f59e0b"/>
+                <circle cx="86" cy="32" r="7" fill="#fde68a" opacity="0.7"/>
+                <circle cx="86" cy="32" r="3.5" fill="#f59e0b"/>
+                <!-- 果实 -->
+                <circle cx="38" cy="72" r="10" fill="url(#fruitGrad)"/>
+                <line x1="38" y1="62" x2="38" y2="68" stroke="#22c55e" stroke-width="2"/>
+                <circle cx="145" cy="58" r="9" fill="url(#fruitGrad)"/>
+                <line x1="145" y1="49" x2="145" y2="54" stroke="#22c55e" stroke-width="2"/>
+                <circle cx="62" cy="48" r="8" fill="url(#fruitGrad)"/>
+                <line x1="62" y1="40" x2="62" y2="44" stroke="#22c55e" stroke-width="2"/>
+                <circle cx="108" cy="38" r="7" fill="url(#fruitGrad2)"/>
+                <line x1="108" y1="31" x2="108" y2="34" stroke="#22c55e" stroke-width="1.5"/>
+                <defs>
+                    <radialGradient id="fruitGrad" cx="35%" cy="30%">
+                        <stop offset="0%" stop-color="#ff6b6b"/><stop offset="100%" stop-color="#dc2626"/>
+                    </radialGradient>
+                    <radialGradient id="fruitGrad2" cx="35%" cy="30%">
+                        <stop offset="0%" stop-color="#ff9999"/><stop offset="100%" stop-color="#e04444"/>
+                    </radialGradient>
+                </defs>
+            </svg>
+            <div class="preview-pot"></div>
+        </div>
+        <div class="stage-info">
+            <div class="si-icon">🍅</div>
+            <div class="si-name">结果</div>
+            <div class="si-th"><span>生长值 ≥ 750</span></div>
+            <div class="si-desc">青涩的小番茄挂满枝头，在阳光的照耀下由绿转红。每一颗都饱满圆润，散发着诱人的光泽。</div>
+            <div class="stage-stats"><span class="tag">🌿 10 片叶</span><span class="tag">🌼 3 朵花</span><span class="tag">🍅 4 个果</span><span class="tag">📏 约 90cm</span></div>
+        </div>
+    </div>
+
+    <div class="stage-arrow">⬇</div>
+
+    <!-- 阶段7：成熟番茄树 -->
+    <div class="stage-card" style="--sc:#d32f2f;">
+        <div class="tree-preview">
+            <svg width="220" height="320" viewBox="0 0 220 320">
+                <defs>
+                    <radialGradient id="fg5" cx="35%" cy="28%"><stop offset="0%" stop-color="#ff7b7b"/><stop offset="60%" stop-color="#ee3a3a"/><stop offset="100%" stop-color="#b91c1c"/></radialGradient>
+                    <radialGradient id="fg6" cx="35%" cy="28%"><stop offset="0%" stop-color="#ff9a9a"/><stop offset="100%" stop-color="#e85050"/></radialGradient>
+                    <linearGradient id="potG5" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stop-color="#e8790a"/><stop offset="40%" stop-color="#c2410c"/><stop offset="100%" stop-color="#7c2d12"/>
+                    </linearGradient>
+                    <linearGradient id="trunkG" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stop-color="#14532d"/><stop offset="35%" stop-color="#15803d"/><stop offset="65%" stop-color="#166534"/><stop offset="100%" stop-color="#14532d"/>
+                    </linearGradient>
+                    <!-- 叶片模板 -->
+                    <g id="leafL"><ellipse cx="0" cy="0" rx="28" ry="13" fill="#166534"/><ellipse cx="0" cy="0" rx="24" ry="10" fill="#22c55e" opacity="0.7"/><line x1="-20" y1="0" x2="20" y2="0" stroke="#15803d" stroke-width="0.8" opacity="0.6"/></g>
+                </defs>
+
+                <!-- 背景光晕 -->
+                <ellipse cx="110" cy="180" rx="80" ry="40" fill="#22c55e" opacity="0.04"/>
+
+                <!-- 土壤 -->
+                <ellipse cx="110" cy="270" rx="68" ry="15" fill="#3d2618"/>
+                <ellipse cx="110" cy="268" rx="55" ry="10" fill="#4a3020" opacity="0.6"/>
+
+                <!-- 花盆主体 -->
+                <rect x="30" y="248" width="160" height="66" rx="12" fill="url(#potG5)"/>
+                <!-- 花盆高光 -->
+                <rect x="38" y="252" width="8" height="50" rx="4" fill="white" opacity="0.08"/>
+                <!-- 花盆横纹 -->
+                <line x1="32" y1="278" x2="188" y2="278" stroke="rgba(0,0,0,0.15)" stroke-width="1.5"/>
+                <line x1="32" y1="296" x2="188" y2="296" stroke="rgba(0,0,0,0.1)" stroke-width="1"/>
+                <!-- 花盆沿 -->
+                <rect x="18" y="236" width="184" height="20" rx="10" fill="#f97316"/>
+                <rect x="18" y="236" width="184" height="8" rx="5" fill="#fb923c" opacity="0.5"/>
+
+                <!-- 支撑杆 -->
+                <line x1="110" y1="120" x2="110" y2="260" stroke="#8b7355" stroke-width="3" stroke-linecap="round" opacity="0.6"/>
+                <!-- 绑绳 -->
+                <line x1="106" y1="165" x2="114" y2="163" stroke="#d4a574" stroke-width="2" opacity="0.7"/>
+                <line x1="106" y1="200" x2="114" y2="198" stroke="#d4a574" stroke-width="2" opacity="0.7"/>
+
+                <!-- 主干（渐变锥形，用多边形模拟） -->
+                <polygon points="105,240 115,240 112,100 108,100" fill="url(#trunkG)"/>
+                <!-- 主干纹理 -->
+                <line x1="110" y1="230" x2="110" y2="110" stroke="#14532d" stroke-width="1" opacity="0.3"/>
+
+                <!-- === 枝条结构（冠状展开）=== -->
+                <!-- 第一层：底部侧枝 -->
+                <line x1="110" y1="195" x2="74" y2="160" stroke="#166534" stroke-width="5" stroke-linecap="round"/>
+                <line x1="110" y1="188" x2="148" y2="155" stroke="#166534" stroke-width="5" stroke-linecap="round"/>
+                <!-- 第一层子枝 -->
+                <line x1="74" y1="160" x2="52" y2="132" stroke="#22c55e" stroke-width="3" stroke-linecap="round"/>
+                <line x1="148" y1="155" x2="172" y2="128" stroke="#22c55e" stroke-width="3" stroke-linecap="round"/>
+
+                <!-- 第二层：中侧枝 -->
+                <line x1="110" y1="160" x2="66" y2="108" stroke="#15803d" stroke-width="6" stroke-linecap="round"/>
+                <line x1="110" y1="152" x2="156" y2="102" stroke="#15803d" stroke-width="6" stroke-linecap="round"/>
+                <!-- 第二层子枝 -->
+                <line x1="66" y1="108" x2="38" y2="76" stroke="#22c55e" stroke-width="4" stroke-linecap="round"/>
+                <line x1="66" y1="108" x2="55" y2="90" stroke="#4ade80" stroke-width="2.5" stroke-linecap="round"/>
+                <line x1="156" y1="102" x2="185" y2="70" stroke="#22c55e" stroke-width="4" stroke-linecap="round"/>
+                <line x1="156" y1="102" x2="170" y2="85" stroke="#4ade80" stroke-width="2.5" stroke-linecap="round"/>
+
+                <!-- 第三层：上层枝 -->
+                <line x1="110" y1="130" x2="78" y2="68" stroke="#16a34a" stroke-width="5" stroke-linecap="round"/>
+                <line x1="110" y1="122" x2="144" y2="62" stroke="#16a34a" stroke-width="5" stroke-linecap="round"/>
+
+                <!-- 树冠中心顶枝 -->
+                <line x1="110" y1="100" x2="98" y2="42" stroke="#22c55e" stroke-width="3" stroke-linecap="round"/>
+                <line x1="110" y1="100" x2="118" y2="38" stroke="#22c55e" stroke-width="3" stroke-linecap="round"/>
+                <line x1="110" y1="95" x2="110" y2="28" stroke="#4ade80" stroke-width="2" stroke-linecap="round"/>
+
+                <!-- === 叶片（分散于各枝端）=== -->
+                <use href="#leafL" x="30" y="70" transform="rotate(-35,30,70)"/>
+                <ellipse cx="34" cy="130" rx="22" ry="10" fill="#15803d" transform="rotate(-28,34,130)"/>
+                <use href="#leafL" x="180" y="62" transform="rotate(30,180,62) scale(0.9)"/>
+                <ellipse cx="190" cy="125" rx="20" ry="9" fill="#15803d" transform="rotate(25,190,125)"/>
+
+                <ellipse cx="48" cy="88" rx="17" ry="8" fill="#22c55e" transform="rotate(-20,48,88)"/>
+                <ellipse cx="60" cy="104" rx="16" ry="7" fill="#4ade80" transform="rotate(-15,60,104)"/>
+                <ellipse cx="172" cy="80" rx="16" ry="8" fill="#22c55e" transform="rotate(18,172,80)"/>
+                <ellipse cx="165" cy="96" rx="15" ry="7" fill="#4ade80" transform="rotate(12,165,96)"/>
+
+                <use href="#leafL" x="70" y="62" transform="rotate(-22,70,62) scale(0.85)"/>
+                <ellipse cx="92" cy="48" rx="14" ry="7" fill="#4ade80" transform="rotate(-10,92,48)"/>
+                <use href="#leafL" x="148" y="56" transform="rotate(20,148,56) scale(0.85)"/>
+                <ellipse cx="128" cy="42" rx="13" ry="6" fill="#4ade80" transform="rotate(8,128,42)"/>
+
+                <ellipse cx="102" cy="36" rx="12" ry="6" fill="#86efac" transform="rotate(-5,102,36)"/>
+                <ellipse cx="116" cy="32" rx="11" ry="5" fill="#86efac" transform="rotate(5,116,32)"/>
+                <ellipse cx="108" cy="24" rx="10" ry="5" fill="#bbf7d0" transform="rotate(0,108,24)"/>
+
+                <!-- === 花朵 === -->
+                <g transform="translate(36,72)"><circle cx="0" cy="0" r="9" fill="#fef3c7" opacity="0.9"/><circle cx="0" cy="0" r="5" fill="#f59e0b"/></g>
+                <g transform="translate(188,68)"><circle cx="0" cy="0" r="8" fill="#fef3c7" opacity="0.9"/><circle cx="0" cy="0" r="4.5" fill="#f59e0b"/></g>
+                <g transform="translate(96,26)"><circle cx="0" cy="0" r="7" fill="#fef3c7" opacity="0.85"/><circle cx="0" cy="0" r="4" fill="#f59e0b"/></g>
+                <g transform="translate(80,58)"><circle cx="0" cy="0" r="6" fill="#fef3c7" opacity="0.75"/><circle cx="0" cy="0" r="3" fill="#f59e0b"/></g>
+                <g transform="translate(145,50)"><circle cx="0" cy="0" r="6" fill="#fef3c7" opacity="0.75"/><circle cx="0" cy="0" r="3" fill="#f59e0b"/></g>
+
+                <!-- === 果实（精选位置，带立体高光）=== -->
+                <!-- 左下垂果 -->
+                <g transform="translate(30,78)">
+                    <ellipse cx="0" cy="0" rx="11" ry="13" fill="url(#fg5)"/>
+                    <ellipse cx="-3" cy="-4" rx="4" ry="5" fill="white" opacity="0.2"/>
+                    <line x1="0" y1="-13" x2="0" y2="-9" stroke="#22c55e" stroke-width="2.5"/>
+                    <path d="M-4,-8 Q0,-12 4,-8" fill="#22c55e" opacity="0.7"/>
+                </g>
+                <!-- 右下垂果 -->
+                <g transform="translate(194,76)">
+                    <ellipse cx="0" cy="0" rx="10" ry="12" fill="url(#fg5)"/>
+                    <ellipse cx="-3" cy="-3" rx="3.5" ry="4.5" fill="white" opacity="0.2"/>
+                    <line x1="0" y1="-12" x2="0" y2="-8" stroke="#22c55e" stroke-width="2"/>
+                    <path d="M-3,-7 Q0,-11 3,-7" fill="#22c55e" opacity="0.7"/>
+                </g>
+                <!-- 中左果 -->
+                <g transform="translate(52,96)">
+                    <ellipse cx="0" cy="0" rx="10" ry="11" fill="url(#fg6)"/>
+                    <ellipse cx="-2" cy="-3" rx="3" ry="4" fill="white" opacity="0.2"/>
+                    <line x1="0" y1="-11" x2="0" y2="-7" stroke="#22c55e" stroke-width="2"/>
+                </g>
+                <!-- 中右果 -->
+                <g transform="translate(170,90)">
+                    <ellipse cx="0" cy="0" rx="9" ry="10" fill="url(#fg5)"/>
+                    <ellipse cx="-2" cy="-3" rx="3" ry="3.5" fill="white" opacity="0.2"/>
+                    <line x1="0" y1="-10" x2="0" y2="-7" stroke="#22c55e" stroke-width="2"/>
+                </g>
+                <!-- 顶中果 -->
+                <g transform="translate(108,34)">
+                    <ellipse cx="0" cy="0" rx="9" ry="10" fill="url(#fg5)"/>
+                    <ellipse cx="-2" cy="-3" rx="3" ry="3.5" fill="white" opacity="0.2"/>
+                    <line x1="0" y1="-10" x2="0" y2="-7" stroke="#22c55e" stroke-width="1.8"/>
+                </g>
+                <!-- 左上果 -->
+                <g transform="translate(70,70)">
+                    <ellipse cx="0" cy="0" rx="8" ry="9" fill="url(#fg6)"/>
+                    <ellipse cx="-2" cy="-2" rx="2.5" ry="3" fill="white" opacity="0.2"/>
+                    <line x1="0" y1="-9" x2="0" y2="-6" stroke="#22c55e" stroke-width="1.8"/>
+                </g>
+                <!-- 右上果 -->
+                <g transform="translate(152,64)">
+                    <ellipse cx="0" cy="0" rx="8" ry="9" fill="url(#fg5)"/>
+                    <ellipse cx="-2" cy="-2" rx="2.5" ry="3" fill="white" opacity="0.2"/>
+                    <line x1="0" y1="-9" x2="0" y2="-6" stroke="#22c55e" stroke-width="1.8"/>
+                </g>
+                <!-- 低部成熟果 -->
+                <g transform="translate(88,128)">
+                    <ellipse cx="0" cy="0" rx="10" ry="11" fill="url(#fg5)"/>
+                    <ellipse cx="-3" cy="-3" rx="3.5" ry="4" fill="white" opacity="0.25"/>
+                    <line x1="0" y1="-11" x2="0" y2="-8" stroke="#22c55e" stroke-width="2"/>
+                </g>
+
+                <!-- 藤蔓须 -->
+                <path d="M52,132 Q40,120 44,108" fill="none" stroke="#4ade80" stroke-width="1.5" opacity="0.6"/>
+                <path d="M172,128 Q185,118 180,105" fill="none" stroke="#4ade80" stroke-width="1.5" opacity="0.6"/>
+                <path d="M38,76 Q28,68 32,55" fill="none" stroke="#86efac" stroke-width="1" opacity="0.5"/>
+            </svg>
+        </div>
+        <div class="stage-info">
+            <div class="si-icon">🌳</div>
+            <div class="si-name">成熟番茄树</div>
+            <div class="si-th"><span>生长值 ≥ 1000</span></div>
+            <div class="si-desc">一棵硕果累累的番茄树！粗壮的枝干如伞盖般撑开，红透的番茄点缀其间，藤蔓蜿蜒舒展。这是坚持与付出的最美回报。</div>
+            <div class="stage-stats"><span class="tag">🌿 15+ 片叶</span><span class="tag">🌼 5 朵花</span><span class="tag">🍅 8 颗果</span><span class="tag">📏 约 120cm</span></div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

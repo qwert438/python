@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}智能日程管理器{% endblock %}</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family:'Microsoft YaHei','微软雅黑',sans-serif;
+            background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);
+            min-height:100vh; color:#e2e8f0;
+        }
+        .navbar {
+            background:rgba(30,41,59,0.95); backdrop-filter:blur(10px);
+            border-bottom:1px solid #334155; padding:0 24px; height:56px;
+            display:flex; align-items:center; justify-content:space-between;
+        }
+        .navbar .logo { font-size:20px; font-weight:700; color:#f1f5f9; text-decoration:none; }
+        .navbar .logo span { color:#3b82f6; }
+        .nav-links { display:flex; gap:4px; }
+        .nav-links a {
+            color:#94a3b8; text-decoration:none; padding:8px 16px;
+            border-radius:8px; font-size:14px; transition:all 0.2s;
+        }
+        .nav-links a:hover, .nav-links a.active { color:#f1f5f9; background:rgba(59,130,246,0.15); }
+        .user-info { display:flex; align-items:center; gap:12px; font-size:13px; }
+        .btn {
+            display:inline-block; padding:8px 16px; border-radius:8px; border:none;
+            cursor:pointer; font-size:13px; font-family:inherit; text-decoration:none; transition:all 0.2s;
+        }
+        .btn-primary { background:#3b82f6; color:white; } .btn-primary:hover { background:#2563eb; }
+        .btn-success { background:#22c55e; color:white; } .btn-success:hover { background:#16a34a; }
+        .btn-warning { background:#f59e0b; color:white; } .btn-warning:hover { background:#d97706; }
+        .btn-danger { background:#ef4444; color:white; } .btn-danger:hover { background:#dc2626; }
+        .btn-muted { background:#334155; color:#e2e8f0; } .btn-muted:hover { background:#475569; }
+        .btn-sm { padding:5px 10px; font-size:12px; }
+        .container { max-width:1200px; margin:0 auto; padding:24px 20px; }
+        .card { background:rgba(30,41,59,0.7); border:1px solid #334155; border-radius:12px; padding:20px; }
+        .card-header { font-size:16px; font-weight:600; color:#f1f5f9; margin-bottom:14px; }
+        .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
+        .stat-card { background:rgba(30,41,59,0.7); border:1px solid #334155; border-radius:12px; padding:18px; text-align:center; }
+        .stat-card .value { font-size:28px; font-weight:700; margin-bottom:4px; }
+        .stat-card .label { font-size:12px; color:#64748b; }
+        table { width:100%; border-collapse:collapse; }
+        th { background:rgba(15,23,42,0.4); padding:12px 16px; text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; color:#64748b; font-weight:600; }
+        td { padding:12px 16px; border-top:1px solid #1e293b; font-size:14px; }
+        tr:hover td { background:rgba(59,130,246,0.05); }
+        .badge { display:inline-block; padding:3px 10px; border-radius:10px; font-size:12px; }
+        .badge-high { background:rgba(239,68,68,0.15); color:#ef4444; }
+        .badge-medium { background:rgba(245,158,11,0.15); color:#f59e0b; }
+        .badge-low { background:rgba(34,197,94,0.15); color:#22c55e; }
+        .badge-honor { background:rgba(59,130,246,0.15); color:#60a5fa; }
+        .alert { padding:12px 16px; border-radius:8px; margin-bottom:16px; font-size:14px; }
+        .alert-info { background:rgba(59,130,246,0.1); border:1px solid rgba(59,130,246,0.3); color:#93c5fd; }
+        .alert-error { background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); color:#fca5a5; }
+        form label { display:block; font-size:13px; color:#94a3b8; margin-bottom:4px; margin-top:12px; }
+        form input, form textarea, form select {
+            width:100%; padding:8px 12px; border-radius:8px; border:1px solid #334155;
+            background:#0f172a; color:#e2e8f0; font-size:14px; font-family:inherit;
+        }
+        form textarea { resize:vertical; min-height:60px; }
+        .modal-overlay {
+            display:none; position:fixed; top:0; left:0; width:100%; height:100%;
+            background:rgba(0,0,0,0.6); z-index:1000; justify-content:center; align-items:center;
+        }
+        .modal-overlay.show { display:flex; }
+        .modal {
+            background:#1e293b; border:1px solid #334155; border-radius:16px;
+            padding:28px; max-width:500px; width:90%; max-height:80vh; overflow-y:auto;
+        }
+        .modal h3 { font-size:18px; margin-bottom:16px; color:#f1f5f9; }
+        .modal .actions { display:flex; gap:8px; justify-content:flex-end; margin-top:20px; }
+        .footer { text-align:center; padding:20px; color:#475569; font-size:12px; }
+        .pomodoro-panel { background:rgba(30,41,59,0.7); border:1px solid #334155; border-radius:12px; padding:20px; margin-top:16px; }
+        .pomodoro-panel .timer { font-size:48px; font-weight:700; text-align:center; font-family:'Consolas',monospace; color:#3b82f6; margin:12px 0; }
+        .progress-bar { background:#334155; border-radius:8px; height:8px; overflow:hidden; margin:8px 0; }
+        .progress-bar .fill { background:#3b82f6; height:100%; border-radius:8px; transition:width 1s linear; }
+        @media (max-width:768px) { .stats-grid { grid-template-columns:repeat(2,1fr); } .nav-links { display:none; } }
+        .actions-bar { display:flex; gap:8px; align-items:center; margin-bottom:16px; flex-wrap:wrap; }
+        .actions-bar select, .actions-bar input {
+            padding:8px 12px; border-radius:8px; border:1px solid #334155;
+            background:#0f172a; color:#e2e8f0; font-size:14px;
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar">
+        <div>
+            <a href="/" class="logo">🍅 <span>智能日程</span>管理器</a>
+        </div>
+        <div class="nav-links">
+            <a href="/" class="{% if active_page=='tasks' %}active{% endif %}">📋 任务</a>
+            <a href="/calendar" class="{% if active_page=='calendar' %}active{% endif %}">📅 日历</a>
+            <a href="/plant" class="{% if active_page=='plant' %}active{% endif %}">🍅 番茄园</a>
+            <a href="/stats" class="{% if active_page=='stats' %}active{% endif %}">📊 统计</a>
+            <a href="/honor" class="{% if active_page=='honor' %}active{% endif %}">🏅 称号</a>
+            <a href="/leaderboard" class="{% if active_page=='leaderboard' %}active{% endif %}">🏆 排行榜</a>
+        </div>
+        <div class="user-info">
+            {% if session.username %}
+            <span>{{ session.username }}</span>
+            <span style="color:#22c55e;">{{ honor_title }}</span>
+            <span style="color:#3b82f6;font-weight:600;">{{ points }} 积分</span>
+            <a href="/delete_account" class="btn btn-danger btn-sm" onclick="return confirm('确定要注销账号吗？此操作不可恢复。')">注销</a>
+            <a href="/logout" class="btn btn-muted btn-sm">退出</a>
+            {% else %}
+            <a href="/login" class="btn btn-primary btn-sm">登录</a>
+            {% endif %}
+        </div>
+    </nav>
+
+    {% block content %}{% endblock %}
+
+    <div class="footer">
+        Smart Schedule Manager v2.0 · Flask Web · {{ now }}
+    </div>
+
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>
