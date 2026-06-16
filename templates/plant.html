@@ -3,8 +3,8 @@
 {% block extra_head %}
 <style>
 .plant-scene {
-    max-width: 700px; margin: 0 auto; padding: 30px 20px;
-    text-align: center;
+    max-width: 700px; margin: 0 auto; padding: 30px 20px 60px;
+    text-align: center; min-height: 120vh;
 }
 .plant-title {
     font-size: 24px; font-weight: 700; color: #f1f5f9; margin-bottom: 4px;
@@ -15,7 +15,8 @@
 
 /* 花盆 + SVG 树容器 */
 .tree-wrapper {
-    position: relative; width: 200px; height: 320px; margin: 0 auto 24px;
+    position: relative; width: 200px; height: 380px; margin: 60px auto 24px;
+    transition: transform 0.2s ease-out;
 }
 .tree-wrapper svg {
     width: 100%; height: 100%;
@@ -85,6 +86,86 @@
     box-shadow: 0 4px 16px rgba(0,0,0,0.3);
 }
 .msg-toast.error { background: #ef4444; }
+
+/* ====== 浇水动画 ====== */
+@keyframes canMoveDown {
+    0%   { transform: translateY(-80px); opacity: 0; }
+    20%  { opacity: 1; }
+    100% { transform: translateY(30px); opacity: 1; }
+}
+@keyframes canTilt {
+    0%   { transform: translateY(30px) rotate(0deg); }
+    100% { transform: translateY(30px) rotate(-30deg); }
+}
+@keyframes waterDropNew {
+    0%   { transform: translateY(0) scale(0.8); opacity: 0.9; }
+    100% { transform: translateY(140px) scale(1); opacity: 0; }
+}
+.water-can {
+    position: absolute; top: 0; left: 50%; font-size: 42px;
+    transform: translateX(-50%) translateY(-80px); opacity: 0;
+    animation: canMoveDown 0.5s ease-out forwards, canTilt 0.3s ease-in 0.55s forwards;
+    pointer-events: none; z-index: 10; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+}
+.water-drop {
+    position: absolute; top: 90px; width: 8px; height: 14px;
+    background: linear-gradient(to bottom, rgba(147,197,253,0.9), rgba(59,130,246,0.6));
+    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+    pointer-events: none; z-index: 9;
+}
+
+/* ====== 施肥动画 ====== */
+@keyframes fertFloatNew {
+    0%   { transform: translate(0, 0) scale(0.6); opacity: 0.9; }
+    30%  { transform: translate(var(--drift), -50px) scale(1); opacity: 0.8; }
+    70%  { transform: translate(calc(var(--drift) * 0.5), -130px) scale(0.8); opacity: 0.5; }
+    100% { transform: translate(0, -220px) scale(0); opacity: 0; }
+}
+.fert-particle {
+    position: absolute; bottom: 70px; width: 10px; height: 10px;
+    background: radial-gradient(circle, #c4a574, #8b6914);
+    border-radius: 50%;
+    pointer-events: none; z-index: 9;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+/* ====== 晒太阳动画 ====== */
+@keyframes sunAppear {
+    0%   { transform: scale(0); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+@keyframes sunSpin {
+    0%   { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+@keyframes sunFadeOut {
+    0%   { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(0.3); }
+}
+@keyframes rayScan {
+    0%   { opacity: 0; transform: scaleY(0.3); }
+    40%  { opacity: 0.6; transform: scaleY(2); }
+    80%  { opacity: 0.8; transform: scaleY(3); }
+    100% { opacity: 0; transform: scaleY(4); }
+}
+.sun-icon {
+    position: absolute; top: -10px; right: 10px; font-size: 48px;
+    transform: scale(0); opacity: 0;
+    pointer-events: none; z-index: 10;
+}
+.sun-icon.playing {
+    animation: sunAppear 0.4s ease-out forwards,
+               sunSpin 3s linear infinite;
+}
+.sun-icon.fading {
+    animation: sunFadeOut 0.5s ease-in forwards;
+}
+.sun-ray-light {
+    position: absolute; top: 14px; right: 34px; width: 3px; height: 80px;
+    background: linear-gradient(to bottom, rgba(251,191,36,0.7), transparent);
+    border-radius: 2px; transform-origin: top center;
+    pointer-events: none; z-index: 9;
+}
 </style>
 {% endblock %}
 
@@ -102,7 +183,7 @@
         {% set s = plant.stage_idx %}
         {% set sh = [35, 90, 150, 200, 260, 290, 310][s] %}
         {% set sw = [4, 5, 6, 8, 10, 12, 14][s] %}
-        <svg viewBox="0 0 200 320" id="treeSvg">
+        <svg viewBox="0 -80 200 400" id="treeSvg">
             <defs>
                 <radialGradient id="fgA" cx="35%" cy="30%"><stop offset="0%" stop-color="#ff6b6b"/><stop offset="100%" stop-color="#dc2626"/></radialGradient>
                 <radialGradient id="fgB" cx="35%" cy="30%"><stop offset="0%" stop-color="#ff9999"/><stop offset="100%" stop-color="#e04444"/></radialGradient>
@@ -162,6 +243,8 @@
             <circle cx="90" cy="{{ 248 - sh - 2 }}" r="8" fill="url(#fgA)"/><line x1="90" y1="{{ 248 - sh - 10 }}" x2="90" y2="{{ 248 - sh - 6 }}" stroke="#22c55e" stroke-width="2"/>
             {% endif %}
         </svg>
+        <!-- 动画粒子容器 -->
+        <div id="animContainer" style="position:absolute;top:0;left:0;width:100%;height:100%;overflow:hidden;pointer-events:none;"></div>
     </div>
 
     <!-- 信息面板 -->
@@ -257,26 +340,160 @@ function updateUI(plant, plantPts) {
     location.reload();
 }
 
-function doWater() {
-    fetch('/api/plant/water', {method:'POST'}).then(r => r.json()).then(data => {
-        if (data.ok) { showToast(data.msg || '浇水成功！'); updateUI(data.plant, data.plant_points); }
-        else showToast(data.error, true);
-    });
-}
+	// ====== 动画锁：播放期间禁止重复点击 ======
+	var animLocked = false;
 
-function doFertilize() {
-    fetch('/api/plant/fertilize', {method:'POST'}).then(r => r.json()).then(data => {
-        if (data.ok) { showToast(data.msg || '施肥成功！'); updateUI(data.plant, data.plant_points); }
-        else showToast(data.error, true);
-    });
-}
+	function lockButtons() {
+	    animLocked = true;
+	    document.getElementById('btnWater').disabled = true;
+	    document.getElementById('btnFert').disabled = true;
+	    document.getElementById('btnSun').disabled = true;
+	}
 
-function doSun() {
-    fetch('/api/plant/sun', {method:'POST'}).then(r => r.json()).then(data => {
-        if (data.ok) { showToast(data.msg || '晒太阳成功！'); updateUI(data.plant, data.plant_points); }
-        else showToast(data.error, true);
-    });
-}
-</script>
+	function unlockButtons(plantPts) {
+	    animLocked = false;
+	    var pts = (plantPts !== undefined) ? plantPts : parseInt(document.getElementById('availPoints').textContent) || 0;
+	    document.getElementById('btnWater').disabled = pts < 5;
+	    document.getElementById('btnFert').disabled = pts < 10;
+	    document.getElementById('btnSun').disabled = pts < 20;
+	}
+
+	// ====== 浇水动画（1.2s）：洒水壶下移 → 倾斜 → 水滴飘落 ======
+	function playWaterAnim() {
+	    return new Promise(function(resolve) {
+	        var c = document.getElementById('animContainer');
+	        var can = document.createElement('div');
+	        can.className = 'water-can';
+	        can.textContent = '🪣';
+	        c.appendChild(can);
+	        setTimeout(function() {
+	            for (var wave = 0; wave < 3; wave++) {
+	                setTimeout(function() {
+	                    for (var i = 0; i < 4; i++) {
+	                        (function(delay) {
+	                            setTimeout(function() {
+	                                var d = document.createElement('div');
+	                                d.className = 'water-drop';
+	                                d.style.left = (25 + Math.random() * 50) + '%';
+	                                d.style.top = '110px';
+	                                d.style.width = (5 + Math.random() * 6) + 'px';
+	                                d.style.height = (10 + Math.random() * 8) + 'px';
+	                                d.style.transition = 'all ' + (0.5 + Math.random() * 0.3) + 's ease-in';
+	                                d.style.opacity = '0.9';
+	                                c.appendChild(d);
+	                                requestAnimationFrame(function() {
+	                                    d.style.transform = 'translateY(' + (100 + Math.random() * 80) + 'px) scale(0.9)';
+	                                    d.style.opacity = '0';
+	                                });
+	                                setTimeout(function() { d.remove(); }, 700);
+	                            }, delay);
+	                        })(i * 30);
+	                    }
+	                }, wave * 120);
+	            }
+	        }, 580);
+	        setTimeout(function() {
+	            can.remove();
+	            resolve();
+	        }, 1200);
+	    });
+	}
+
+	// ====== 施肥动画（1.5s）：褐色颗粒散射飘向根部 ======
+	function playFertAnim() {
+	    return new Promise(function(resolve) {
+	        var c = document.getElementById('animContainer');
+	        for (var i = 0; i < 20; i++) {
+	            (function(idx) {
+	                setTimeout(function() {
+	                    var p = document.createElement('div');
+	                    p.className = 'fert-particle';
+	                    p.style.left = (20 + Math.random() * 60) + '%';
+	                    p.style.bottom = (50 + Math.random() * 30) + 'px';
+	                    var size = (4 + Math.random() * 10);
+	                    p.style.width = size + 'px';
+	                    p.style.height = size + 'px';
+	                    var drift = (Math.random() - 0.5) * 60;
+	                    p.style.setProperty('--drift', drift + 'px');
+	                    p.style.animation = 'fertFloatNew ' + (1.0 + Math.random() * 0.5) + 's ease-out forwards';
+	                    c.appendChild(p);
+	                    setTimeout(function() { p.remove(); }, 1600);
+	                }, idx * 60);
+	            })(i);
+	        }
+	        setTimeout(function() { resolve(); }, 1500);
+	    });
+	}
+
+	// ====== 晒太阳动画（1.8s）：太阳淡入 → 光线扫过2次 → 淡出 ======
+	function playSunAnim() {
+	    return new Promise(function(resolve) {
+	        var c = document.getElementById('animContainer');
+	        var sun = document.createElement('div');
+	        sun.className = 'sun-icon';
+	        sun.textContent = '☀️';
+	        c.appendChild(sun);
+	        sun.classList.add('playing');
+	        for (var round = 0; round < 2; round++) {
+	            setTimeout(function() {
+	                for (var i = 0; i < 6; i++) {
+	                    (function(angle) {
+	                        var ray = document.createElement('div');
+	                        ray.className = 'sun-ray-light';
+	                        ray.style.transform = 'rotate(' + angle + 'deg)';
+	                        ray.style.animation = 'rayScan 0.5s ease-out forwards';
+	                        c.appendChild(ray);
+	                        setTimeout(function() { ray.remove(); }, 600);
+	                    })(i * 30 - 60 + Math.random() * 20);
+	                }
+	            }, round * 700);
+	        }
+	        setTimeout(function() {
+	            sun.classList.remove('playing');
+	            sun.classList.add('fading');
+	        }, 1300);
+	        setTimeout(function() {
+	            sun.remove();
+	            resolve();
+	        }, 1800);
+	    });
+	}
+
+	// ====== 操作函数（带动画锁）======
+	function doWater() {
+	    if (animLocked) return;
+	    lockButtons();
+	    playWaterAnim().then(function() {
+	        fetch('/api/plant/water', {method:'POST'}).then(r => r.json()).then(data => {
+	            if (data.ok) { showToast(data.msg || '浇水成功！'); updateUI(data.plant, data.plant_points); }
+	            else { showToast(data.error, true); unlockButtons(); }
+	        });
+	    });
+	}
+
+	function doFertilize() {
+	    if (animLocked) return;
+	    lockButtons();
+	    playFertAnim().then(function() {
+	        fetch('/api/plant/fertilize', {method:'POST'}).then(r => r.json()).then(data => {
+	            if (data.ok) { showToast(data.msg || '施肥成功！'); updateUI(data.plant, data.plant_points); }
+	            else { showToast(data.error, true); unlockButtons(); }
+	        });
+	    });
+	}
+
+	function doSun() {
+	    if (animLocked) return;
+	    lockButtons();
+	    playSunAnim().then(function() {
+	        fetch('/api/plant/sun', {method:'POST'}).then(r => r.json()).then(data => {
+	            if (data.ok) { showToast(data.msg || '晒太阳成功！'); updateUI(data.plant, data.plant_points); }
+	            else { showToast(data.error, true); unlockButtons(); }
+	        });
+	    });
+	}
+
+
+		</script>
 {% endif %}
 {% endblock %}

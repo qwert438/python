@@ -51,19 +51,68 @@
 
 <!-- 任务编辑弹窗 -->
 <div class="modal-overlay" id="taskModalOverlay">
-    <div class="modal">
-        <h3 id="modalTitle">新建任务</h3>
+    <div class="modal task-modal">
+        <div class="modal-header">
+            <h3 class="modal-title" id="modalTitle">新建任务</h3>
+            <button class="modal-close" onclick="closeTaskModal()" title="关闭">✕</button>
+        </div>
         <input type="hidden" id="editTaskId">
-        <label>任务标题</label><input type="text" id="taskTitle" placeholder="输入任务标题...">
-        <label>任务描述</label><textarea id="taskDesc" placeholder="可选描述..."></textarea>
-        <label>截止时间</label><input type="text" id="taskDue" placeholder="如: 明天、2026-06-20 18:00">
-        <label>计划日期（可留空）</label><input type="text" id="taskScheduled" placeholder="如: 2026-06-25">
-        <label>优先级</label>
-        <select id="taskPriority"><option value="1">高</option><option value="2">中</option><option value="3" selected>低</option></select>
-        <label>期望番茄数</label><input type="number" id="taskTomato" value="1" min="1" max="20">
+
+        <div class="form-group">
+            <label>任务标题</label>
+            <input type="text" id="taskTitle" placeholder="" maxlength="100">
+        </div>
+
+        <div class="form-group">
+            <label>任务描述</label>
+            <textarea id="taskDesc" placeholder="" rows="4"></textarea>
+        </div>
+
+        <div class="form-group">
+            <label>截止时间</label>
+            <input type="text" id="taskDue" placeholder="">
+            <div class="field-hint">支持2024-12-31 18:00、明天、后天、下周一</div>
+        </div>
+
+        <div class="form-group">
+            <label>计划进入</label>
+            <input type="text" id="taskScheduled" placeholder="">
+            <div class="field-hint">未来日期会进入待定列表，例如 2026-05-28</div>
+        </div>
+
+        <!-- ====== 新增：预测番茄时长行 ====== -->
+        <div class="form-group">
+            <label>预测番茄时长</label>
+            <div class="predict-row">
+                <input type="text" id="pomoPredict" class="predict-display" readonly placeholder="点击右侧「预测」按钮获取建议番茄数">
+                <button type="button" class="btn btn-predict" onclick="doPredict()">预测</button>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>优先级</label>
+            <div class="radio-group">
+                <label class="radio-label"><input type="radio" name="taskPriority" value="1"> 高</label>
+                <label class="radio-label"><input type="radio" name="taskPriority" value="2" checked> 中</label>
+                <label class="radio-label"><input type="radio" name="taskPriority" value="3"> 低</label>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>目标番茄</label>
+            <div class="stepper-group">
+                <input type="number" id="taskTomato" value="1" min="1" max="20">
+                <div class="stepper-arrows">
+                    <button type="button" class="stepper-up" onclick="stepperUp()">▲</button>
+                    <button type="button" class="stepper-down" onclick="stepperDown()">▼</button>
+                </div>
+                <span class="stepper-unit">个</span>
+            </div>
+        </div>
+
         <div class="actions">
-            <button class="btn btn-muted" onclick="closeTaskModal()">取消</button>
-            <button class="btn btn-primary" onclick="saveTask()">保存</button>
+            <button class="btn btn-create" onclick="saveTask()">创建任务</button>
+            <button class="btn btn-cancel" onclick="closeTaskModal()">取消</button>
         </div>
     </div>
 </div>
@@ -77,7 +126,7 @@
         <div style="background:rgba(59,130,246,0.1);border-radius:8px;padding:16px;margin:12px 0;font-size:15px;line-height:1.8;color:#e2e8f0;" id="pomoDoneQuote"></div>
         <div id="pomoDoneTask" style="font-size:13px;color:#22c55e;margin-bottom:8px;display:none;"></div>
         <div class="actions" style="justify-content:center;">
-            <button class="btn btn-success" onclick="startBreak()" style="font-size:15px;padding:10px 30px;">☕ 开始休息</button>
+            <button class="btn btn-success" id="pomoDoneActionBtn" onclick="startBreak()" style="font-size:15px;padding:10px 30px;">☕ 开始休息</button>
         </div>
     </div>
 </div>
@@ -89,6 +138,54 @@ let pomoInterval = null, pomoRunning = false, pomoPaused = false;
 let pomoSeconds = 25, pomoTotal = 25, pomoPhase = 'work', pomoWorkCount = 0;
 let pomoTaskId = null, pomoStartTime = null;
 const WORK = 25, SHORT_BREAK = 5, LONG_BREAK = 10;
+let uncompletedReminderShown = false;
+
+function sendNotification(title, body) {
+    console.log('[Notify] sending:', title, '| perm:', Notification.permission);
+    if (Notification.permission !== 'granted') return;
+    try {
+        new Notification(title, { body: body, icon: '🍅' });
+        console.log('[Notify] sent OK');
+    } catch(e) {
+        console.log('[Notify] error:', e);
+    }
+}
+
+// 独立函数：请求未完成任务数并发通知
+function showLoginReminder() {
+    if (uncompletedReminderShown) return;
+    if (Notification.permission !== 'granted') return;
+    fetch('/api/tasks?view=uncompleted').then(r => r.json()).then(data => {
+        if (data.tasks && data.tasks.length > 0) {
+            uncompletedReminderShown = true;
+            const highCount = data.tasks.filter(t => t.priority === 1).length;
+            let body = `你有 ${data.tasks.length} 个任务待处理`;
+            if (highCount > 0) body += `，其中 ${highCount} 个高优先级`;
+            sendNotification('📋 待办任务提醒', body);
+        }
+    });
+}
+
+// 入口：权限已获准 → 直接发；否则等用户点击
+function tryLoginReminder() {
+    if (Notification.permission === 'granted') {
+        showLoginReminder();
+    }
+}
+
+// 监听首次点击：请求通知权限 → 获准后发提醒
+document.addEventListener('click', function() {
+    if (Notification.permission === 'default') {
+        Notification.requestPermission().then(function(perm) {
+            console.log('[Notify] permission result:', perm);
+            if (perm === 'granted') {
+                showLoginReminder();
+            }
+        });
+    } else if (Notification.permission === 'granted' && !uncompletedReminderShown) {
+        showLoginReminder();
+    }
+}, { once: false });
 
 function loadTasks() {
     const view = document.getElementById('viewFilter').value;
@@ -130,6 +227,8 @@ function loadTasks() {
                     return row;
                 }).join('');
             }
+            // 登录后首次加载：尝试桌面提醒
+            if (data.view === 'uncompleted') tryLoginReminder();
             updateStats();
         });
 }
@@ -159,28 +258,41 @@ function openTaskModal(taskId) {
                 document.getElementById('taskDesc').value = t.description || '';
                 document.getElementById('taskDue').value = t.due_date_raw || '';
                 document.getElementById('taskScheduled').value = t.scheduled_date_raw || '';
-                document.getElementById('taskPriority').value = t.priority;
+                const prioRadio = document.querySelector(`input[name="taskPriority"][value="${t.priority}"]`);
+                if (prioRadio) prioRadio.checked = true;
                 document.getElementById('taskTomato').value = t.target_pomodoros || 1;
             }
         });
     } else {
         ['taskTitle','taskDesc','taskDue','taskScheduled'].forEach(id => document.getElementById(id).value = '');
-        document.getElementById('taskPriority').value = '3';
+        document.querySelector('input[name="taskPriority"][value="2"]').checked = true;
         document.getElementById('taskTomato').value = '1';
     }
+    // 每次打开弹窗清空预测展示框（不保留上次预测结果）
+    var predDisplay = document.getElementById('pomoPredict');
+    predDisplay.value = '';
+    predDisplay.style.color = '#999';
     document.getElementById('taskModalOverlay').classList.add('show');
+    document.getElementById('taskTitle').focus();
 }
 
-function closeTaskModal() { document.getElementById('taskModalOverlay').classList.remove('show'); }
+function closeTaskModal() {
+    document.getElementById('taskModalOverlay').classList.remove('show');
+    // 关闭弹窗时清空预测展示框，丢弃临时预测数据
+    var predDisplay = document.getElementById('pomoPredict');
+    predDisplay.value = '';
+    predDisplay.style.color = '#999';
+}
 
 function saveTask() {
     const taskId = document.getElementById('editTaskId').value;
+    const priorityRadio = document.querySelector('input[name="taskPriority"]:checked');
     const payload = {
         title: document.getElementById('taskTitle').value,
         description: document.getElementById('taskDesc').value,
         due_date: document.getElementById('taskDue').value,
         scheduled_date: document.getElementById('taskScheduled').value,
-        priority: parseInt(document.getElementById('taskPriority').value),
+        priority: parseInt(priorityRadio ? priorityRadio.value : '2'),
         target_pomodoros: parseInt(document.getElementById('taskTomato').value)
     };
     const url = taskId ? `/api/tasks/${taskId}/edit` : '/api/tasks/new';
@@ -193,12 +305,84 @@ function saveTask() {
 
 function editTask(id) { openTaskModal(id); }
 
+function stepperUp() {
+    const input = document.getElementById('taskTomato');
+    const val = parseInt(input.value) || 1;
+    if (val < 20) input.value = val + 1;
+}
+
+function stepperDown() {
+    const input = document.getElementById('taskTomato');
+    const val = parseInt(input.value) || 1;
+    if (val > 1) input.value = val - 1;
+}
+
+// ====== 预测番茄时长 ======
+function doPredict() {
+    const title = document.getElementById('taskTitle').value.trim();
+    const display = document.getElementById('pomoPredict');
+    // 边界：标题为空
+    if (!title) {
+        display.value = '请先填写任务标题再执行预测';
+        display.style.color = '#e67e22';
+        return;
+    }
+    display.value = '预测中...';
+    display.style.color = '#999';
+    fetch('/api/predict_pomodoros', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: title })
+    })
+    .then(r => r.json()).then(data => {
+        if (data.ok && data.prediction) {
+            const p = data.prediction;
+            if (p.predicted === null) {
+                // 无匹配相似历史任务
+                display.value = p.source;
+                display.style.color = '#999';
+            } else {
+                // 展示预测结果（仅展示，不自动修改目标番茄输入框）
+                display.value = p.source;
+                display.style.color = p.confidence === 'high' ? '#22c55e' :
+                                     p.confidence === 'medium' ? '#f59e0b' : '#999';
+            }
+        } else {
+            display.value = '暂无历史任务数据，无法预测';
+            display.style.color = '#999';
+        }
+    }).catch(function() {
+        display.value = '预测请求失败，请重试';
+        display.style.color = '#e74c3c';
+    });
+}
+
 function completeTask(id) {
     const cost = prompt('实际耗时（秒）：', '1500');
     if (!cost || isNaN(cost) || parseInt(cost) <= 0) return;
     fetch(`/api/tasks/${id}/complete`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({cost_sec:parseInt(cost)})})
         .then(r => r.json()).then(data => {
-            if (data.ok) { if (data.quote) alert('任务完成！\n' + data.quote); loadTasks(); }
+            if (data.ok) {
+                if (data.quote) alert('任务完成！\n' + data.quote);
+                // 完成任务桌面提醒
+                sendNotification('✅ 任务已完成', '任务已成功标记为完成');
+                // 强制关闭番茄计时面板
+                clearInterval(pomoInterval);
+                pomoRunning = false; pomoPaused = false;
+                document.getElementById('pomodoroPanel').style.display = 'none';
+                document.getElementById('pomoDoneOverlay').classList.remove('show');
+                // 延迟等列表刷新后，检查剩余任务
+                loadTasks();
+                setTimeout(function() {
+                    fetch('/api/tasks?view=uncompleted').then(r => r.json()).then(d => {
+                        if (d.tasks && d.tasks.length > 0) {
+                            sendNotification('📋 剩余任务提醒', `还有 ${d.tasks.length} 个任务等待处理`);
+                        } else {
+                            sendNotification('🎉 全部完成', '所有任务已清空，太棒了！');
+                        }
+                    });
+                }, 800);
+            }
             else alert(data.error);
         });
 }
@@ -303,8 +487,22 @@ function pomoComplete() {
                     document.getElementById('pomoDoneTask').style.display = 'block';
                     document.getElementById('pomoDoneTask').textContent = '任务已自动完成！';
                     loadTasks();
+                    // 任务自动完成：弹窗按钮改为"关闭"，点击后关闭面板
+                    const btn = document.getElementById('pomoDoneActionBtn');
+                    btn.textContent = '✓ 关闭';
+                    btn.onclick = function() {
+                        document.getElementById('pomoDoneOverlay').classList.remove('show');
+                        pomoReset();
+                        document.getElementById('pomodoroPanel').style.display = 'none';
+                    };
+                    document.getElementById('pomoDoneOverlay').classList.add('show');
+                    return;
                 } else {
                     document.getElementById('pomoDoneTask').style.display = 'none';
+                    // 恢复默认按钮
+                    const btn = document.getElementById('pomoDoneActionBtn');
+                    btn.textContent = '☕ 开始休息';
+                    btn.onclick = startBreak;
                 }
                 document.getElementById('pomoDoneOverlay').classList.add('show');
                 if (Notification.permission === 'granted') new Notification('专注完成', {body:'+' + (data.points_earned||25) + ' 积分'});
@@ -351,7 +549,6 @@ function startBreak() {
     pomoInterval = setInterval(pomoTick, 1000);
 }
 
-if (Notification.permission === 'default') Notification.requestPermission();
 loadTasks();
 </script>
 {% endblock %}

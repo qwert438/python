@@ -122,7 +122,8 @@ class Schedule:
 
 # ====================== 工具函数 ======================
 def safe_account_name(username):
-    return re.sub(r"[^A-Za-z0-9_]", "_", username.strip()) or "user"
+    # 保留中文、字母、数字、下划线，其余字符替换为下划线
+    return re.sub(r"[^\w一-鿿]", "_", username.strip()) or "user"
 
 def get_account_dir(username):
     return os.path.join(ACCOUNTS_DIR, safe_account_name(username))
@@ -172,8 +173,11 @@ class DataManager:
         self.username = username; self.is_account_data = bool(username)
         if username:
             ad = get_account_dir(username); os.makedirs(ad, exist_ok=True)
-            self.json_path = os.path.join(ad, "tasks.json"); self.db_path = os.path.join(ad, "pomodoro.db")
-        else: self.json_path = None; self.db_path = None
+            self.json_path = os.path.join(ad, "tasks.json")
+            self.history_path = os.path.join(ad, "history_task.json")  # 预测用历史数据
+            self.db_path = os.path.join(ad, "pomodoro.db")
+        else:
+            self.json_path = None; self.history_path = None; self.db_path = None
         self.init_db()
 
     def init_db(self):
@@ -214,6 +218,28 @@ class DataManager:
         try:
             with open(self.json_path, "r", encoding="utf-8") as f: return json.load(f)
         except: return []
+
+    # ====== history_task.json：预测用历史数据存储 ======
+    def load_history_tasks(self):
+        """读取历史任务记录（容错：文件不存在或损坏返回空列表）"""
+        if not self.history_path: return []
+        try:
+            with open(self.history_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            return []
+
+    def append_history_task(self, title, target_pomodoros):
+        """追加一条历史任务记录（任务描述+目标番茄数）"""
+        if not self.history_path: return
+        records = self.load_history_tasks()
+        records.append({"title": title, "target_pomodoros": target_pomodoros})
+        try:
+            os.makedirs(os.path.dirname(self.history_path), exist_ok=True)
+            with open(self.history_path, "w", encoding="utf-8") as f:
+                json.dump(records, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass  # 写入失败静默处理，不崩溃
 
     def save_pomodoro(self, start_time, end_time, phase, task_id=None):
         if not self.db_path: return False, None, None
@@ -311,6 +337,53 @@ class DataManager:
                 "total_history": len(rows),
                 "global_avg_seconds": int(global_avg),
                 "global_avg_text": format_duration(int(global_avg))}
+
+    def _text_similarity(self, a, b):
+        """中英文混合文本相似度：SequenceMatcher + 字符集 Jaccard"""
+        seq_ratio = difflib.SequenceMatcher(None, a, b).ratio()
+        # 字符集 Jaccard（对中文短文本更有效）
+        set_a = set(a.replace(' ', '')); set_b = set(b.replace(' ', ''))
+        if set_a and set_b:
+            char_jaccard = len(set_a & set_b) / len(set_a | set_b)
+        else:
+            char_jaccard = 0
+        # 取两者较高值，字符重叠给 1.2 倍权重
+        return max(seq_ratio, char_jaccard * 1.2)
+
+    def predict_pomodoros(self, title=""):
+        """基于历史任务标题相似度预测所需番茄数（原生字符串匹配，不依赖第三方NLP库）"""
+        # 从 history_task.json 读取历史数据（容错：不存在或损坏返回空列表）
+        history = self.load_history_tasks()
+        if not history:
+            return None
+        title_text = title.strip() if title else ""
+        if not title_text:
+            return None  # 空标题由前端提示
+        # 计算每个历史任务标题与输入标题的相似度
+        scored = []
+        for h in history:
+            hist_title = (h.get("title") or "").strip()
+            if hist_title:
+                sim = self._text_similarity(title_text, hist_title)
+                if sim > 0.3:  # 相似度阈值 0.3
+                    scored.append((sim, h.get("target_pomodoros", 1)))
+        # 按相似度排序，取 Top-5
+        scored.sort(key=lambda x: x[0], reverse=True)
+        top = scored[:5]
+        if len(top) >= 2:
+            # 相似度加权平均，向下取整
+            total_weight = sum(s for s, _ in top)
+            predicted = int(sum(s * v for s, v in top) / total_weight) if total_weight > 0 else 1
+            confidence = "high" if len(top) >= 3 else "medium"
+            source = f"根据相似历史任务预测，建议番茄数：{predicted}个"
+        elif len(top) == 1:
+            predicted = top[0][1]; confidence = "low"
+            source = f"根据相似历史任务预测，建议番茄数：{predicted}个"
+        else:
+            return {"predicted": None, "confidence": "none",
+                    "source": "暂无相似历史任务，无法预测", "total_history": len(history)}
+        return {"predicted": max(1, min(20, predicted)), "confidence": confidence,
+                "source": source, "total_history": len(history)}
 
     # ---- 番茄培养 ----
     PLANT_STAGES = [
@@ -487,10 +560,10 @@ def login_page():
         action = request.form.get("action", "login")
         if not username or not password:
             return render_template('login.html', error="请输入用户名和密码", active_page='login', server_url=SCORE_SERVER_URL)
-        if not (3 <= len(username) <= 20):
-            return render_template('login.html', error="用户名长度应为 3-20 个字符", active_page='login', server_url=SCORE_SERVER_URL)
-        if not re.match(r'^[A-Za-z0-9_]+$', username):
-            return render_template('login.html', error="用户名只能包含字母、数字和下划线", active_page='login', server_url=SCORE_SERVER_URL)
+        if not (2 <= len(username) <= 20):
+            return render_template('login.html', error="用户名长度应为 2-20 个字符", active_page='login', server_url=SCORE_SERVER_URL)
+        if not re.match(r'^[\w一-鿿]+$', username):
+            return render_template('login.html', error="用户名只能包含中文、字母、数字和下划线", active_page='login', server_url=SCORE_SERVER_URL)
         if len(password) < 6:
             return render_template('login.html', error="密码至少 6 位", active_page='login', server_url=SCORE_SERVER_URL)
         path = "/register" if action == "register" else "/login"
@@ -553,7 +626,7 @@ def stats_page():
     pomo = {"today_focus_display": format_duration(ps['today_focus']),
             "weekly_count": ps['weekly_count'], "total_focus_display": format_duration(ps['total_focus'])}
     return render_template('stats.html', stats=stats, pomo=pomo, points_info=dm.get_points_profile(),
-                           t=int(time.time()), active_page='stats')
+                           t=int(time.time() * 1000), active_page='stats')
 
 @web_app.route("/honor")
 @login_required
@@ -691,6 +764,15 @@ def api_predict(title):
     dm = get_dm(); pred = dm.predict_task_duration(title)
     return jsonify({"ok": True, "prediction": pred})
 
+@web_app.route("/api/predict_pomodoros", methods=["POST"])
+@login_required
+def api_predict_pomodoros():
+    """预测番茄数：接收任务标题文本，匹配历史任务标题相似度"""
+    data = request.get_json() or {}
+    title = data.get("title", "")
+    dm = get_dm(); pred = dm.predict_pomodoros(title)
+    return jsonify({"ok": True, "prediction": pred})
+
 @web_app.route("/api/tasks/new", methods=["POST"])
 @login_required
 def api_task_new():
@@ -703,6 +785,8 @@ def api_task_new():
                 parse_natural_datetime(data.get("scheduled_date", "")))
     task.target_pomodoros = max(1, min(20, int(data.get("target_pomodoros", 1) or 1)))
     schedule.add_task(task); dm.save_tasks([t.to_dict() for t in schedule.tasks])
+    # 创建任务时自动将任务标题+目标番茄数写入 history_task.json（用于后续预测）
+    dm.append_history_task(task.title, task.target_pomodoros)
     return jsonify({"ok": True, "task_id": task.id})
 
 @web_app.route("/api/tasks/<tid>/edit", methods=["POST"])
@@ -896,15 +980,34 @@ def api_chart_dashboard():
         if v>0: ax.text(b.get_x()+b.get_width()/2,b.get_height(),f"{v}",ha="center",va="bottom",fontsize=9,fontweight="bold")
     ax.set_title(f"最近 7 天完成任务数（共 {sum(completed_7d)} 个）", fontsize=12, fontweight="bold")
     ax.set_xticks(range(7)); ax.set_xticklabels([d[5:] for d in last_7_days], rotation=30, fontsize=8); ax.set_ylabel("任务数"); ax.set_ylim(bottom=0); ax.yaxis.set_major_locator(MaxNLocator(integer=True)); ax.grid(axis="y", alpha=0.3)
+    # ---- 各优先级完成情况（修复百分比计算与标注位置）----
     ax = axes[1,0]; pc={1:0,2:0,3:0}; pt={1:0,2:0,3:0}
-    for t in tasks_data: p=t["priority"]; pt[p]=pt.get(p,0)+1
-    if t["completed"]: pc[p]=pc.get(p,0)+1
-    cc=[pc[i] for i in [1,2,3]]; uc=[pt[i]-pc[i] for i in [1,2,3]]
-    ax.bar(range(3),cc,color="#2ecc71",label="已完成",edgecolor="white")
-    ax.bar(range(3),uc,bottom=cc,color="#e74c3c",alpha=0.7,label="未完成",edgecolor="white")
+    for t in tasks_data:
+        p = t["priority"]
+        pt[p] = pt.get(p, 0) + 1          # 该优先级总任务数
+        if t["completed"]:
+            pc[p] = pc.get(p, 0) + 1      # 该优先级已完成任务数
+    cc = [pc[i] for i in [1,2,3]]         # 已完成数列表（绿色柱）
+    uc = [pt[i] - pc[i] for i in [1,2,3]] # 未完成数列表（红色柱）
+    # 画堆叠柱状图
+    ax.bar(range(3), cc, color="#2ecc71", label="已完成", edgecolor="white")
+    ax.bar(range(3), uc, bottom=cc, color="#e74c3c", alpha=0.7, label="未完成", edgecolor="white")
+    # 修复：逐个优先级独立计算完成率，标注在绿色已完成柱顶部
     for i in range(3):
-        tot=pt[i+1]
-        if tot>0: ax.text(i,tot,f"{pc[i+1]/tot*100:.0f}%",ha="center",va="bottom",fontsize=9,fontweight="bold",color="#2c3e50")
+        total = pt[i + 1]                    # 该优先级总任务数
+        completed = pc[i + 1]                # 该优先级已完成数
+        if total > 0:
+            rate = completed / total * 100   # 完成率百分比
+            # 标注位置：y = 绿色柱高度（completed），va="bottom" 让文字底部贴着柱顶
+            ax.text(i, completed,
+                    f"{rate:.1f}%",
+                    ha="center", va="bottom",
+                    fontsize=9, fontweight="bold", color="#2c3e50")
+        else:
+            # 该优先级无任务时显示「无任务」
+            ax.text(i, 0, "无任务",
+                    ha="center", va="bottom",
+                    fontsize=9, color="#94a3b8")
     ax.set_title("各优先级完成情况", fontsize=12, fontweight="bold")
     ax.set_xticks(range(3)); ax.set_xticklabels(["高","中","低"]); ax.set_xlabel("优先级"); ax.set_ylabel("任务数量"); ax.legend(loc="upper right", fontsize=9); ax.yaxis.set_major_locator(MaxNLocator(integer=True)); ax.grid(axis="y", alpha=0.3)
     ax = axes[1,1]
@@ -930,7 +1033,13 @@ def api_chart_dashboard():
     plt.tight_layout()
     buf = io.BytesIO(); fig.savefig(buf, format='png', dpi=100, bbox_inches='tight')
     buf.seek(0); plt.close(fig)
-    return send_file(buf, mimetype='image/png')
+    # 禁用浏览器缓存，确保每次请求都是最新图表数据
+    from flask import make_response
+    resp = make_response(send_file(buf, mimetype='image/png'))
+    resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    resp.headers['Pragma'] = 'no-cache'
+    resp.headers['Expires'] = '0'
+    return resp
 
 # ====================== 自动启动排行榜服务 ======================
 def ensure_score_server_running():

@@ -7,7 +7,7 @@
         <p style="color:#64748b;margin-bottom:20px;font-size:13px;">服务器: {{ server_url }} · 与桌面版数据互通</p>
         <form method="POST">
             <label>用户名</label>
-            <input type="text" name="username" required placeholder="3-20 位字母、数字或下划线" style="margin-bottom:14px;">
+            <input type="text" name="username" required placeholder="2-20 位中文、字母、数字或下划线" minlength="2" maxlength="20" style="margin-bottom:14px;">
             <label>密码</label>
             <input type="password" name="password" required placeholder="至少 6 位" style="margin-bottom:20px;">
             {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
