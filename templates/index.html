@@ -483,11 +483,19 @@ function pomoComplete() {
                 } else {
                     document.getElementById('pomoDoneLevelUp').style.display = 'none';
                 }
+                // 更新"已选择任务"的番茄进度显示
+                var infoEl = document.getElementById('pomoTaskInfo');
+                var match = infoEl.textContent.match(/(\d+)\/(\d+)/);
+                if (match) {
+                    var done = parseInt(match[1]) + 1;
+                    var total = match[2];
+                    infoEl.textContent = '已选择任务 · 番茄: ' + done + '/' + total;
+                }
+                // 每个番茄结束都刷新任务列表（进度实时更新）
+                loadTasks();
                 if (data.task_completed) {
                     document.getElementById('pomoDoneTask').style.display = 'block';
                     document.getElementById('pomoDoneTask').textContent = '任务已自动完成！';
-                    loadTasks();
-                    // 任务自动完成：弹窗按钮改为"关闭"，点击后关闭面板
                     const btn = document.getElementById('pomoDoneActionBtn');
                     btn.textContent = '✓ 关闭';
                     btn.onclick = function() {
@@ -499,7 +507,6 @@ function pomoComplete() {
                     return;
                 } else {
                     document.getElementById('pomoDoneTask').style.display = 'none';
-                    // 恢复默认按钮
                     const btn = document.getElementById('pomoDoneActionBtn');
                     btn.textContent = '☕ 开始休息';
                     btn.onclick = startBreak;
