@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 智能日程管理器 - Flask Web 界面
-功能与 main.py 完全一致，通过浏览器访问
 启动: python web_app.py  ->  http://127.0.0.1:5000
 """
 import io, os, json, sqlite3, re, random, secrets, shutil, threading, time, difflib
@@ -295,15 +294,27 @@ class DataManager:
         cur.execute("DELETE FROM task_history WHERE task_id=?", (task_id,)); conn.commit(); conn.close()
 
     def get_pomodoro_stats(self):
-        if not self.db_path: return {"today_focus": 0, "weekly_count": 0, "total_focus": 0}
-        conn = sqlite3.connect(self.db_path); cur = conn.cursor()
-        cur.execute("SELECT SUM(duration) FROM pomodoro_records WHERE DATE(start_time)=DATE('now') AND phase='work'")
-        tf = cur.fetchone()[0] or 0
-        cur.execute("SELECT COUNT(*) FROM pomodoro_records WHERE DATE(start_time)>=DATE('now','-7 days') AND phase='work'")
-        wc = cur.fetchone()[0] or 0
-        cur.execute("SELECT SUM(duration) FROM pomodoro_records WHERE phase='work'")
-        tot = cur.fetchone()[0] or 0
-        conn.close(); return {"today_focus": tf, "weekly_count": wc, "total_focus": tot}
+        """今日专注 = 今日完成任务的总番茄数 × 25秒
+           总时长   = 所有完成任务的总番茄数 × 25秒
+           7天次数  = 近7天完成的任务数"""
+        tasks = self.load_tasks()
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        today_pomos = 0
+        total_pomos = 0
+        week_count = 0
+        seven_days_ago = (datetime.now() - timedelta(days=7)).strftime("%Y-%m-%d")
+        for t in tasks:
+            if t.get("completed") and t.get("finished_at"):
+                pomos = t.get("target_pomodoros", 1)
+                total_pomos += pomos
+                finished_date = t["finished_at"][:10]
+                if finished_date == today_str:
+                    today_pomos += pomos
+                if finished_date >= seven_days_ago:
+                    week_count += 1
+        return {"today_focus": today_pomos * POINTS_PER_POMODORO,
+                "weekly_count": week_count,
+                "total_focus": total_pomos * POINTS_PER_POMODORO}
 
     def predict_task_duration(self, title=""):
         """基于历史完成情况的任务耗时预测（与 main.py 一致）"""
@@ -674,10 +685,13 @@ def calendar_page():
     import calendar as cal_mod
     month_days = cal_mod.monthcalendar(year, month)
     today = datetime.now().date()
-    task_counts = {}
+    task_titles = {}
     for t in schedule.tasks:
         if not t.completed and t.scheduled_date:
-            d = t.scheduled_date.date(); task_counts[d] = task_counts.get(d, 0) + 1
+            d = t.scheduled_date.date()
+            if d not in task_titles:
+                task_titles[d] = []
+            task_titles[d].append(t.title)
     weeks = []
     for week in month_days:
         week_data = []
@@ -685,11 +699,13 @@ def calendar_page():
             if day == 0: week_data.append({"day": 0, "date": None})
             else:
                 cd = datetime(year, month, day); cday = cd.date()
+                titles = task_titles.get(cday, [])
                 week_data.append({
                     "day": day, "date": cd.strftime("%Y-%m-%d"),
                     "is_today": cday == today,
                     "is_past": cday < today,
-                    "pending_count": task_counts.get(cday, 0)
+                    "pending_count": len(titles),
+                    "pending_titles": titles
                 })
         weeks.append(week_data)
     prev_month = month - 1 if month > 1 else 12; prev_year = year if month > 1 else year - 1
@@ -730,7 +746,13 @@ def api_tasks():
     dm = get_dm(); dm.release_due_pending_tasks(); schedule, dm = get_schedule()
     view = request.args.get("view", "uncompleted")
     search = request.args.get("search", "").strip().lower()
-    if view == "all": tasks = schedule.tasks
+    if view == "all":
+        # 按 未完成 → 待定 → 已完成 分组排列
+        def status_sort_key(t):
+            if t.completed: return 2       # 已完成排最后
+            if t.is_pending(): return 1    # 待定排中间
+            return 0                        # 未完成排最前
+        tasks = sorted(schedule.tasks, key=lambda t: (status_sort_key(t), Schedule.priority_sort_key(t)))
     elif view == "pending": tasks = schedule.get_pending_tasks()
     elif view == "completed": tasks = schedule.get_completed_tasks()
     else: tasks = schedule.get_uncompleted_tasks()
@@ -939,14 +961,18 @@ def api_chart_dashboard():
     tasks_data = dm.load_tasks()
     completed = sum(1 for t in tasks_data if t["completed"]); total = len(tasks_data)
     conn = sqlite3.connect(dm.db_path); cursor = conn.cursor()
-    records = cursor.execute("SELECT start_time, duration FROM pomodoro_records WHERE phase='work'").fetchall()
     history_records = cursor.execute("SELECT completed_at, cost_sec FROM task_history").fetchall()
     conn.close()
+    # 每日专注 = 当天完成任务的总番茄数 × 25秒（与今日专注计算方式一致）
     work_time = {}
-    for rec in records: date = rec[0].split(" ")[0]; work_time[date] = work_time.get(date, 0) + rec[1]
+    for t in tasks_data:
+        if t.get("completed") and t.get("finished_at"):
+            date = t["finished_at"][:10]
+            pomos = t.get("target_pomodoros", 1)
+            work_time[date] = work_time.get(date, 0) + pomos * POINTS_PER_POMODORO
     today = datetime.now().date()
     last_7_days = [(today - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(6, -1, -1)]
-    last_7_seconds = [work_time.get(d, 0) for d in last_7_days]  # 单位：秒，与番茄钟一致
+    last_7_seconds = [work_time.get(d, 0) for d in last_7_days]
     history_by_day = {}
     for ca, _ in history_records: d = ca.split(" ")[0]; history_by_day[d] = history_by_day.get(d, 0) + 1
     completed_7d = [history_by_day.get(d, 0) for d in last_7_days]

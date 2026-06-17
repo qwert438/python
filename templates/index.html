@@ -5,10 +5,10 @@
     <div class="alert alert-info">📅 {{ today_str }} · 欢迎回来，{{ session.username }}！你有 {{ stats.uncompleted }} 个可执行任务，{{ stats.pending }} 个未来计划。</div>
 
     <div class="stats-grid">
-        <div class="stat-card"><div class="value" style="color:#ef4444;">{{ stats.total }}</div><div class="label">总任务</div></div>
-        <div class="stat-card"><div class="value" style="color:#f59e0b;">{{ stats.uncompleted }}</div><div class="label">未完成</div></div>
-        <div class="stat-card"><div class="value" style="color:#c084fc;">{{ stats.pending }}</div><div class="label">待定</div></div>
-        <div class="stat-card"><div class="value" style="color:#4ade80;">{{ stats.completed }}</div><div class="label">已完成</div></div>
+        <div class="stat-card" onclick="switchView('all')" style="cursor:pointer;"><div class="value" style="color:#ef4444;">{{ stats.total }}</div><div class="label">总任务</div></div>
+        <div class="stat-card" onclick="switchView('uncompleted')" style="cursor:pointer;"><div class="value" style="color:#f59e0b;">{{ stats.uncompleted }}</div><div class="label">未完成</div></div>
+        <div class="stat-card" onclick="switchView('pending')" style="cursor:pointer;"><div class="value" style="color:#c084fc;">{{ stats.pending }}</div><div class="label">待定</div></div>
+        <div class="stat-card" onclick="switchView('completed')" style="cursor:pointer;"><div class="value" style="color:#4ade80;">{{ stats.completed }}</div><div class="label">已完成</div></div>
     </div>
 
     <div class="actions-bar">
@@ -19,7 +19,8 @@
         <button class="btn btn-danger btn-sm" onclick="batchAction('delete')">✕ 删除</button>
         <div style="flex:1;"></div>
         <select id="viewFilter" onchange="loadTasks()">
-            <option value="uncompleted">未完成</option>
+            <option value="all">全部</option>
+            <option value="uncompleted" selected>未完成</option>
             <option value="pending">待定</option>
             <option value="completed">已完成</option>
         </select>
@@ -198,6 +199,8 @@ function loadTasks() {
                 thead.innerHTML = '<tr><th width="60">选择</th><th width="70">优先级</th><th width="90">番茄进度</th><th>任务标题</th><th width="150">截止时间</th><th width="120">操作</th></tr>';
             } else if (data.view === 'pending') {
                 thead.innerHTML = '<tr><th width="60">选择</th><th width="100">计划进入</th><th width="70">优先级</th><th width="90">番茄进度</th><th>任务标题</th><th width="120">操作</th></tr>';
+            } else if (data.view === 'all') {
+                thead.innerHTML = '<tr><th width="60">选择</th><th width="70">状态</th><th width="70">优先级</th><th width="90">番茄进度</th><th>任务标题</th><th width="120">操作</th></tr>';
             } else {
                 thead.innerHTML = '<tr><th width="60">选择</th><th width="90">番茄进度</th><th>任务标题</th><th width="150">完成时间</th><th width="80">耗时</th><th width="120">操作</th></tr>';
             }
@@ -215,6 +218,14 @@ function loadTasks() {
                         row += `<td><span class="badge badge-${t.priority==1?'high':t.priority==2?'medium':'low'}">${t.priority_label}</span></td>`;
                         row += `<td>${t.completed_pomodoros||0}/${t.target_pomodoros||1}</td>`;
                         row += `<td>${t.title}</td><td>${t.due_date||'无'}</td>`;
+                    } else if (data.view === 'all') {
+                        let statusBadge = t.completed ? '<span class="badge badge-low">已完成</span>' :
+                                          (t.scheduled_date_raw ? '<span class="badge badge-medium">待定</span>' :
+                                          '<span class="badge badge-high">未完成</span>');
+                        row += `<td>${statusBadge}</td>`;
+                        row += `<td><span class="badge badge-${t.priority==1?'high':t.priority==2?'medium':'low'}">${t.priority_label}</span></td>`;
+                        row += `<td>${t.completed_pomodoros||0}/${t.target_pomodoros||1}</td>`;
+                        row += `<td>${t.title}</td>`;
                     } else {
                         row += `<td>${t.completed_pomodoros||0}/${t.target_pomodoros||1}</td>`;
                         row += `<td>${t.title}</td><td>${t.finished_at||'无'}</td><td>${t.cost_display||'0秒'}</td>`;
@@ -231,6 +242,11 @@ function loadTasks() {
             if (data.view === 'uncompleted') tryLoginReminder();
             updateStats();
         });
+}
+
+function switchView(view) {
+    document.getElementById('viewFilter').value = view;
+    loadTasks();
 }
 
 function updateStats() {
@@ -482,6 +498,15 @@ function pomoComplete() {
                     document.getElementById('pomoDoneLevelUp').textContent = '称号升级：' + data.honor_title + '!';
                 } else {
                     document.getElementById('pomoDoneLevelUp').style.display = 'none';
+                }
+                // 实时更新右上角积分和称号
+                var navPts = document.getElementById('navPoints');
+                if (navPts && data.total_points !== undefined) {
+                    navPts.textContent = data.total_points + ' 积分';
+                }
+                var navHonor = document.getElementById('navHonor');
+                if (navHonor && data.honor_title) {
+                    navHonor.textContent = data.honor_title;
                 }
                 // 更新"已选择任务"的番茄进度显示
                 var infoEl = document.getElementById('pomoTaskInfo');

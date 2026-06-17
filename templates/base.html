@@ -338,8 +338,8 @@
         <div class="user-info">
             {% if session.username %}
             <span>{{ session.username }}</span>
-            <span style="color:#f87171;">{{ honor_title }}</span>
-            <span style="color:#ef4444;font-weight:600;">{{ points }} 积分</span>
+            <span id="navHonor" style="color:#f87171;">{{ honor_title }}</span>
+            <span id="navPoints" style="color:#ef4444;font-weight:600;">{{ points }} 积分</span>
             <a href="/delete_account" class="btn btn-danger btn-sm" onclick="return confirm('确定要注销账号吗？此操作不可恢复。')">注销</a>
             <a href="/logout" class="btn btn-muted btn-sm">退出</a>
             {% else %}

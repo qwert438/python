@@ -25,14 +25,14 @@
                     {% else %}
                     <td onclick="openCalendarTask('{{ cell.date }}')"
                         style="text-align:center;vertical-align:top;padding:8px 4px;height:75px;cursor:pointer;
-                               {% if cell.is_today %}background:rgba(59,130,246,0.2);{% elif cell.is_past %}opacity:0.4;{% endif %}"
-                        title="点击创建任务">
+                               {% if cell.is_today %}background:rgba(239,68,68,0.15);{% elif cell.is_past %}opacity:0.4;{% endif %}"
+                        title="{% if cell.pending_titles %}{% for t in cell.pending_titles %}{{ t }}{% if not loop.last %}&#10;{% endif %}{% endfor %}{% else %}点击创建任务{% endif %}">
                         <div style="font-weight:600;margin-bottom:2px;">{{ cell.day }}</div>
-                        {% if cell.is_today %}<div style="font-size:10px;color:#3b82f6;">今天</div>{% endif %}
+                        {% if cell.is_today %}<div style="font-size:10px;color:#ef4444;">今天</div>{% endif %}
                         {% if cell.pending_count > 0 %}
                         <div style="font-size:11px;color:#22c55e;margin-top:2px;">{{ cell.pending_count }} 待定</div>
                         {% endif %}
-                        <div style="font-size:10px;color:#64748b;margin-top:2px;">+ 新建</div>
+                        <div style="font-size:10px;color:#8b7070;margin-top:2px;">+ 新建</div>
                     </td>
                     {% endif %}
                     {% endfor %}
@@ -43,21 +43,70 @@
     </div>
 </div>
 
-<!-- 任务创建弹窗 -->
+<!-- 任务创建弹窗（与主页样式一致） -->
 <div class="modal-overlay" id="taskModalOverlay">
-    <div class="modal">
-        <h3 id="modalTitle">新建任务</h3>
+    <div class="modal task-modal">
+        <div class="modal-header">
+            <h3 class="modal-title" id="modalTitle">新建任务</h3>
+            <button class="modal-close" onclick="closeTaskModal()" title="关闭">✕</button>
+        </div>
         <input type="hidden" id="editTaskId">
-        <label>任务标题</label><input type="text" id="taskTitle" placeholder="输入任务标题...">
-        <label>任务描述</label><textarea id="taskDesc" placeholder="可选描述..."></textarea>
-        <label>截止时间</label><input type="text" id="taskDue" placeholder="如: 明天、2026-06-20 18:00">
-        <label>计划日期</label><input type="text" id="taskScheduled" placeholder="自动填充点击的日期" readonly style="opacity:0.7;">
-        <label>优先级</label>
-        <select id="taskPriority"><option value="1">高</option><option value="2" selected>中</option><option value="3">低</option></select>
-        <label>期望番茄数</label><input type="number" id="taskTomato" value="1" min="1" max="20">
+
+        <div class="form-group">
+            <label>任务标题</label>
+            <input type="text" id="taskTitle" placeholder="" maxlength="100">
+        </div>
+
+        <div class="form-group">
+            <label>任务描述</label>
+            <textarea id="taskDesc" placeholder="" rows="4"></textarea>
+        </div>
+
+        <div class="form-group">
+            <label>截止时间</label>
+            <input type="text" id="taskDue" placeholder="">
+            <div class="field-hint">支持2024-12-31 18:00、明天、后天、下周一</div>
+        </div>
+
+        <div class="form-group">
+            <label>计划进入</label>
+            <input type="text" id="taskScheduled" placeholder="">
+            <div class="field-hint">未来日期会进入待定列表，例如 2026-05-28</div>
+        </div>
+
+        <!-- 预测番茄时长行 -->
+        <div class="form-group">
+            <label>预测番茄时长</label>
+            <div class="predict-row">
+                <input type="text" id="pomoPredict" class="predict-display" readonly placeholder="点击右侧「预测」按钮获取建议番茄数">
+                <button type="button" class="btn btn-predict" onclick="doPredict()">预测</button>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>优先级</label>
+            <div class="radio-group">
+                <label class="radio-label"><input type="radio" name="taskPriority" value="1"> 高</label>
+                <label class="radio-label"><input type="radio" name="taskPriority" value="2" checked> 中</label>
+                <label class="radio-label"><input type="radio" name="taskPriority" value="3"> 低</label>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>目标番茄</label>
+            <div class="stepper-group">
+                <input type="number" id="taskTomato" value="1" min="1" max="20">
+                <div class="stepper-arrows">
+                    <button type="button" class="stepper-up" onclick="stepperUp()">▲</button>
+                    <button type="button" class="stepper-down" onclick="stepperDown()">▼</button>
+                </div>
+                <span class="stepper-unit">个</span>
+            </div>
+        </div>
+
         <div class="actions">
-            <button class="btn btn-muted" onclick="closeTaskModal()">取消</button>
-            <button class="btn btn-primary" onclick="saveTask()">保存</button>
+            <button class="btn btn-create" onclick="saveTask()">创建任务</button>
+            <button class="btn btn-cancel" onclick="closeTaskModal()">取消</button>
         </div>
     </div>
 </div>
@@ -72,24 +121,74 @@ function openCalendarTask(dateStr) {
     document.getElementById('taskDesc').value = '';
     document.getElementById('taskDue').value = '';
     document.getElementById('taskScheduled').value = dateStr;
-    document.getElementById('taskPriority').value = '2';
+    document.querySelector('input[name="taskPriority"][value="2"]').checked = true;
     document.getElementById('taskTomato').value = '1';
+    // 清空预测展示框
+    document.getElementById('pomoPredict').value = '';
     document.getElementById('taskModalOverlay').classList.add('show');
     document.getElementById('taskTitle').focus();
 }
 
 function closeTaskModal() {
     document.getElementById('taskModalOverlay').classList.remove('show');
+    document.getElementById('pomoPredict').value = '';
+}
+
+function stepperUp() {
+    var input = document.getElementById('taskTomato');
+    var val = parseInt(input.value) || 1;
+    if (val < 20) input.value = val + 1;
+}
+
+function stepperDown() {
+    var input = document.getElementById('taskTomato');
+    var val = parseInt(input.value) || 1;
+    if (val > 1) input.value = val - 1;
+}
+
+function doPredict() {
+    var title = document.getElementById('taskTitle').value.trim();
+    var display = document.getElementById('pomoPredict');
+    if (!title) {
+        display.value = '请先填写任务标题再执行预测';
+        display.style.color = '#e67e22';
+        return;
+    }
+    display.value = '预测中...';
+    display.style.color = '#999';
+    fetch('/api/predict_pomodoros', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: title })
+    }).then(r => r.json()).then(data => {
+        if (data.ok && data.prediction) {
+            var p = data.prediction;
+            if (p.predicted === null) {
+                display.value = p.source;
+                display.style.color = '#999';
+            } else {
+                display.value = p.source;
+                display.style.color = p.confidence === 'high' ? '#22c55e' :
+                                     p.confidence === 'medium' ? '#f59e0b' : '#999';
+            }
+        } else {
+            display.value = '暂无历史任务数据，无法预测';
+            display.style.color = '#999';
+        }
+    }).catch(function() {
+        display.value = '预测请求失败，请重试';
+        display.style.color = '#e74c3c';
+    });
 }
 
 function saveTask() {
-    const taskId = document.getElementById('editTaskId').value;
-    const payload = {
+    var priorityRadio = document.querySelector('input[name="taskPriority"]:checked');
+    var payload = {
         title: document.getElementById('taskTitle').value,
         description: document.getElementById('taskDesc').value,
         due_date: document.getElementById('taskDue').value,
         scheduled_date: document.getElementById('taskScheduled').value,
-        priority: parseInt(document.getElementById('taskPriority').value),
+        priority: parseInt(priorityRadio ? priorityRadio.value : '2'),
         target_pomodoros: parseInt(document.getElementById('taskTomato').value)
     };
     if (!payload.title) { alert('请输入任务标题'); return; }
