@@ -946,11 +946,11 @@ def api_chart_dashboard():
     for rec in records: date = rec[0].split(" ")[0]; work_time[date] = work_time.get(date, 0) + rec[1]
     today = datetime.now().date()
     last_7_days = [(today - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(6, -1, -1)]
-    last_7_minutes = [round(work_time.get(d, 0) / 60, 1) for d in last_7_days]
+    last_7_seconds = [work_time.get(d, 0) for d in last_7_days]  # 单位：秒，与番茄钟一致
     history_by_day = {}
     for ca, _ in history_records: d = ca.split(" ")[0]; history_by_day[d] = history_by_day.get(d, 0) + 1
     completed_7d = [history_by_day.get(d, 0) for d in last_7_days]
-    bucket_labels = ["0-30秒","30秒-1分钟","1分钟-1分30秒","1分30秒-2分钟","2分钟-2分30秒","2分30秒-3分钟","3分钟及以上"]
+    bucket_labels = ["0-30秒","30-60秒","60-90秒","90-120秒","120-150秒","150-180秒","180秒及以上"]
     tbc = {i: 0 for i in range(len(bucket_labels))}
     for _, cs in history_records: idx = min(max(int(cs or 0), 0) // 30, len(bucket_labels) - 1); tbc[idx] = tbc.get(idx, 0) + 1
     bucket_counts = [tbc[i] for i in range(len(bucket_labels))]
@@ -967,14 +967,17 @@ def api_chart_dashboard():
     else: ax.text(0.5,0.5,"暂无任务",ha="center",va="center",fontsize=12)
     ax.set_title(f"任务完成率（共 {total} 个）", fontsize=12, fontweight="bold")
     ax = axes[0,1]; xs1 = list(range(7))
-    ax.fill_between(xs1, last_7_minutes, color="#3498db", alpha=0.2)
-    ax.plot(xs1, last_7_minutes, marker="o", color="#3498db", linewidth=2, markersize=7)
-    avg = sum(last_7_minutes)/7
-    if avg > 0: ax.axhline(y=avg, color="#e74c3c", linestyle="--", linewidth=1.2, label=f"日均 {avg:.1f} 分"); ax.legend(loc="upper right", fontsize=9)
-    for i,v in enumerate(last_7_minutes):
-        if v > 0: ax.text(i, v, f"{v:.0f}", ha="center", va="bottom", fontsize=8)
-    ax.set_title("最近 7 天每日专注（分钟）", fontsize=12, fontweight="bold")
-    ax.set_xticks(xs1); ax.set_xticklabels([d[5:] for d in last_7_days], rotation=30, fontsize=8); ax.set_ylabel("分钟"); ax.set_ylim(bottom=0); ax.grid(alpha=0.3)
+    ax.fill_between(xs1, last_7_seconds, color="#3498db", alpha=0.2)
+    ax.plot(xs1, last_7_seconds, marker="o", color="#3498db", linewidth=2, markersize=7)
+    avg_sec = sum(last_7_seconds) / 7
+    if avg_sec > 0:
+        avg_label = format_duration(int(avg_sec))
+        ax.axhline(y=avg_sec, color="#e74c3c", linestyle="--", linewidth=1.2, label=f"日均 {avg_label}"); ax.legend(loc="upper right", fontsize=9)
+    for i, v in enumerate(last_7_seconds):
+        if v > 0: ax.text(i, v, format_duration(int(v)), ha="center", va="bottom", fontsize=8)
+    ax.set_title("最近 7 天每日专注", fontsize=12, fontweight="bold")
+    ax.set_xticks(xs1); ax.set_xticklabels([d[5:] for d in last_7_days], rotation=30, fontsize=8)
+    ax.set_ylabel("专注时长"); ax.set_ylim(bottom=0); ax.grid(alpha=0.3)
     ax = axes[0,2]; b2 = ax.bar(range(7), completed_7d, color="#16a085", alpha=0.85, edgecolor="white")
     for b,v in zip(b2,completed_7d):
         if v>0: ax.text(b.get_x()+b.get_width()/2,b.get_height(),f"{v}",ha="center",va="bottom",fontsize=9,fontweight="bold")
@@ -1021,14 +1024,14 @@ def api_chart_dashboard():
     ax.set_xlabel("耗时区间"); ax.set_ylabel("任务数"); ax.yaxis.set_major_locator(MaxNLocator(integer=True)); ax.grid(axis="y", alpha=0.3)
     ax = axes[1,2]
     if work_time:
-        ds=sorted(work_time.keys()); cum=[]; r=0.0
-        for d in ds: r+=work_time[d]/60; cum.append(r)
-        xs2=list(range(len(ds)))
-        ax.plot(xs2,cum,marker="o",color="#9b59b6",linewidth=2,markersize=6)
-        ax.fill_between(xs2,cum,color="#9b59b6",alpha=0.2)
+        ds = sorted(work_time.keys()); cum = []; r = 0
+        for d in ds: r += work_time[d]; cum.append(r)  # 累加秒数
+        xs2 = list(range(len(ds)))
+        ax.plot(xs2, cum, marker="o", color="#9b59b6", linewidth=2, markersize=6)
+        ax.fill_between(xs2, cum, color="#9b59b6", alpha=0.2)
         ax.set_xticks(xs2); ax.set_xticklabels([d[5:] for d in ds], rotation=45, fontsize=8)
-        ax.set_title(f"累积专注趋势（总 {cum[-1]:.1f} 分钟）", fontsize=12, fontweight="bold")
-        ax.set_xlabel("日期"); ax.set_ylabel("累积分钟"); ax.grid(axis="y", alpha=0.3)
+        ax.set_title(f"累积专注趋势（总 {format_duration(cum[-1]) if cum else '0秒'}）", fontsize=12, fontweight="bold")
+        ax.set_xlabel("日期"); ax.set_ylabel("累积时长"); ax.grid(axis="y", alpha=0.3)
     else: ax.text(0.5,0.5,"暂无数据",ha="center",va="center",fontsize=12); ax.set_title("累积专注趋势", fontsize=12, fontweight="bold")
     plt.tight_layout()
     buf = io.BytesIO(); fig.savefig(buf, format='png', dpi=100, bbox_inches='tight')
