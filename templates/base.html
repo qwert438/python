@@ -7,141 +7,212 @@
     <style>
         html { scroll-behavior: smooth; }
         * { margin:0; padding:0; box-sizing:border-box; }
+
+        /* ====== 番茄主题色系 ======
+           主色:   #ef4444 番茄红 / #dc2626 深红
+           辅助:   #22c55e 番茄叶绿 / #f59e0b 金橙色
+           背景:   暖深棕渐变
+           卡片:   暖棕半透明 + 红褐色边框
+        ============================== */
         body {
             font-family:'Microsoft YaHei','微软雅黑',sans-serif;
-            background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);
-            min-height:100vh; color:#e2e8f0;
+            background:linear-gradient(135deg, #2d1414 0%, #1a1010 40%, #1e1515 100%);
+            min-height:100vh; color:#f1ece5;
+            position:relative; overflow-x:hidden;
         }
+
+        /* ====== 背景浮动番茄装饰 ====== */
+        body::before {
+            content:''; position:fixed; top:0; left:0; width:100%; height:100%;
+            pointer-events:none; z-index:0;
+            background:
+                radial-gradient(circle at 15% 20%, rgba(239,68,68,0.06) 0%, transparent 50%),
+                radial-gradient(circle at 85% 40%, rgba(245,158,11,0.05) 0%, transparent 45%),
+                radial-gradient(circle at 50% 70%, rgba(239,68,68,0.04) 0%, transparent 40%),
+                radial-gradient(circle at 10% 80%, rgba(34,197,94,0.04) 0%, transparent 35%);
+        }
+        /* 浮动番茄粒子容器 */
+        .bg-tomatoes {
+            position:fixed; top:0; left:0; width:100%; height:100%;
+            pointer-events:none; z-index:0; overflow:hidden;
+        }
+        .bg-tomato {
+            position:absolute; font-size:28px; opacity:0.08;
+            animation: floatTomato var(--dur) ease-in-out infinite;
+            animation-delay: var(--delay);
+        }
+        @keyframes floatTomato {
+            0%   { transform: translateY(0) rotate(0deg); }
+            25%  { transform: translateY(-30px) rotate(15deg); }
+            50%  { transform: translateY(-10px) rotate(-5deg); }
+            75%  { transform: translateY(-40px) rotate(10deg); }
+            100% { transform: translateY(0) rotate(0deg); }
+        }
+
+        /* ---- 卡片番茄装饰角标 ---- */
+        .card {
+            background:rgba(50,22,22,0.7); border:1px solid #5c2828;
+            border-radius:14px; padding:20px; position:relative; overflow:hidden;
+        }
+        .card::after {
+            content:'🍅'; position:absolute; right:12px; top:-5px;
+            font-size:36px; opacity:0.06; pointer-events:none;
+        }
+        .stat-card {
+            background:rgba(50,22,22,0.7); border:1px solid #6b3030;
+            border-radius:14px; padding:18px; text-align:center;
+            transition: all 0.2s; position:relative; overflow:hidden;
+        }
+        .stat-card::before {
+            content:''; position:absolute; top:-15px; right:-15px;
+            width:50px; height:50px; border-radius:50%;
+            background:rgba(239,68,68,0.08);
+            transition:all 0.3s;
+        }
+        .stat-card:hover::before {
+            width:80px; height:80px; top:-25px; right:-25px;
+            background:rgba(239,68,68,0.15);
+        }
+        .stat-card:hover { border-color:#ef4444; transform:translateY(-2px); box-shadow:0 8px 24px rgba(239,68,68,0.12); }
+
+        /* ---- 导航栏 ---- */
         .navbar {
-            background:rgba(30,41,59,0.95); backdrop-filter:blur(10px);
-            border-bottom:1px solid #334155; padding:0 24px; height:56px;
+            background:rgba(40,18,18,0.96); backdrop-filter:blur(12px);
+            border-bottom:1px solid #5c2828; padding:0 24px; height:56px;
             display:flex; align-items:center; justify-content:space-between;
         }
-        .navbar .logo { font-size:20px; font-weight:700; color:#f1f5f9; text-decoration:none; }
-        .navbar .logo span { color:#3b82f6; }
+        .navbar .logo { font-size:20px; font-weight:700; color:#f1ece5; text-decoration:none; }
+        .navbar .logo span { color:#ef4444; }
         .nav-links { display:flex; gap:4px; }
         .nav-links a {
-            color:#94a3b8; text-decoration:none; padding:8px 16px;
+            color:#c4a8a8; text-decoration:none; padding:8px 16px;
             border-radius:8px; font-size:14px; transition:all 0.2s;
         }
-        .nav-links a:hover, .nav-links a.active { color:#f1f5f9; background:rgba(59,130,246,0.15); }
+        .nav-links a:hover, .nav-links a.active {
+            color:#fff; background:rgba(239,68,68,0.18);
+        }
         .user-info { display:flex; align-items:center; gap:12px; font-size:13px; }
+
+        /* ---- 通用按钮 ---- */
         .btn {
             display:inline-block; padding:8px 16px; border-radius:8px; border:none;
-            cursor:pointer; font-size:13px; font-family:inherit; text-decoration:none; transition:all 0.2s;
+            cursor:pointer; font-size:13px; font-family:inherit; text-decoration:none;
+            transition:all 0.2s; font-weight:500;
         }
-        .btn-primary { background:#3b82f6; color:white; } .btn-primary:hover { background:#2563eb; }
-        .btn-success { background:#22c55e; color:white; } .btn-success:hover { background:#16a34a; }
-        .btn-warning { background:#f59e0b; color:white; } .btn-warning:hover { background:#d97706; }
-        .btn-danger { background:#ef4444; color:white; } .btn-danger:hover { background:#dc2626; }
-        .btn-muted { background:#334155; color:#e2e8f0; } .btn-muted:hover { background:#475569; }
+        .btn-primary { background:#ef4444; color:white; }
+        .btn-primary:hover { background:#dc2626; transform:translateY(-1px); box-shadow:0 4px 12px rgba(239,68,68,0.35); }
+        .btn-success { background:#22c55e; color:white; }
+        .btn-success:hover { background:#16a34a; transform:translateY(-1px); box-shadow:0 4px 12px rgba(34,197,94,0.35); }
+        .btn-warning { background:#f59e0b; color:white; }
+        .btn-warning:hover { background:#d97706; transform:translateY(-1px); box-shadow:0 4px 12px rgba(245,158,11,0.35); }
+        .btn-danger { background:#b91c1c; color:white; }
+        .btn-danger:hover { background:#991b1b; }
+        .btn-muted { background:rgba(92,40,40,0.5); color:#e8d5d5; border:1px solid #5c2828; }
+        .btn-muted:hover { background:rgba(120,50,50,0.6); }
         .btn-sm { padding:5px 10px; font-size:12px; }
+
+        /* ---- 布局 ---- */
         .container { max-width:1200px; margin:0 auto; padding:24px 20px; }
-        .card { background:rgba(30,41,59,0.7); border:1px solid #334155; border-radius:12px; padding:20px; }
-        .card-header { font-size:16px; font-weight:600; color:#f1f5f9; margin-bottom:14px; }
+        .card-header { font-size:16px; font-weight:600; color:#f1ece5; margin-bottom:14px; }
+
+        /* ---- 统计卡片网格 ---- */
         .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px; }
-        .stat-card { background:rgba(30,41,59,0.7); border:1px solid #334155; border-radius:12px; padding:18px; text-align:center; }
         .stat-card .value { font-size:28px; font-weight:700; margin-bottom:4px; }
-        .stat-card .label { font-size:12px; color:#64748b; }
+        .stat-card .label { font-size:12px; color:#b9a0a0; }
+
+        /* ---- 表格 ---- */
         table { width:100%; border-collapse:collapse; }
-        th { background:rgba(15,23,42,0.4); padding:12px 16px; text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; color:#64748b; font-weight:600; }
-        td { padding:12px 16px; border-top:1px solid #1e293b; font-size:14px; }
-        tr:hover td { background:rgba(59,130,246,0.05); }
-        .badge { display:inline-block; padding:3px 10px; border-radius:10px; font-size:12px; }
-        .badge-high { background:rgba(239,68,68,0.15); color:#ef4444; }
-        .badge-medium { background:rgba(245,158,11,0.15); color:#f59e0b; }
-        .badge-low { background:rgba(34,197,94,0.15); color:#22c55e; }
-        .badge-honor { background:rgba(59,130,246,0.15); color:#60a5fa; }
-        .alert { padding:12px 16px; border-radius:8px; margin-bottom:16px; font-size:14px; }
-        .alert-info { background:rgba(59,130,246,0.1); border:1px solid rgba(59,130,246,0.3); color:#93c5fd; }
-        .alert-error { background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); color:#fca5a5; }
-        form label { display:block; font-size:13px; color:#94a3b8; margin-bottom:6px; margin-top:14px; font-weight:500; }
-        form input, form textarea, form select {
-            width:100%; padding:10px 12px; border-radius:10px; border:1px solid #334155;
-            background:#0f172a; color:#e2e8f0; font-size:14px; font-family:inherit;
-            transition: border-color 0.2s, box-shadow 0.2s; outline:none;
+        th {
+            background:rgba(30,12,12,0.5); padding:12px 16px; text-align:left;
+            font-size:11px; text-transform:uppercase; letter-spacing:0.5px;
+            color:#b9a0a0; font-weight:600;
         }
-        form input:focus, form textarea:focus, form select:focus {
-            border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+        td { padding:12px 16px; border-top:1px solid #3a1818; font-size:14px; }
+        tr:hover td { background:rgba(239,68,68,0.06); }
+
+        /* ---- 徽章 ---- */
+        .badge { display:inline-block; padding:3px 10px; border-radius:10px; font-size:12px; font-weight:500; }
+        .badge-high { background:rgba(239,68,68,0.2); color:#f87171; }
+        .badge-medium { background:rgba(245,158,11,0.2); color:#fbbf24; }
+        .badge-low { background:rgba(34,197,94,0.2); color:#4ade80; }
+        .badge-honor { background:rgba(239,68,68,0.18); color:#f87171; }
+
+        /* ---- 提示 ---- */
+        .alert { padding:12px 16px; border-radius:8px; margin-bottom:16px; font-size:14px; }
+        .alert-info { background:rgba(239,68,68,0.08); border:1px solid rgba(239,68,68,0.25); color:#f5c0c0; }
+        .alert-error { background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.35); color:#fca5a5; }
+
+        /* ---- 表单 ---- */
+        form label { display:block; font-size:13px; color:#d4c0c0; margin-bottom:4px; margin-top:12px; font-weight:500; }
+        form input, form textarea, form select {
+            width:100%; padding:8px 12px; border-radius:8px; border:1px solid #5c2828;
+            background:#1a0d0d; color:#f1ece5; font-size:14px; font-family:inherit;
         }
         form textarea { resize:vertical; min-height:60px; }
-        form select { cursor:pointer; appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; padding-right:32px; }
-        form input[type="number"] { -moz-appearance:textfield; }
-        form input[type="number"]::-webkit-inner-spin-button { opacity:1; }
-        .field-icon { display:inline-block; margin-right:4px; font-size:14px; }
-        .field-hint { font-size:11px; color:#475569; margin-top:3px; }
-        .field-row { display:flex; gap:12px; }
-        .field-row .field-half { flex:1; min-width:0; }
+        .field-hint { font-size:11px; color:#8b7070; margin-top:3px; }
+
+        /* ---- 弹窗 ---- */
         .modal-overlay {
             display:none; position:fixed; top:0; left:0; width:100%; height:100%;
-            background:rgba(0,0,0,0.65); z-index:1000; justify-content:center; align-items:center;
+            background:rgba(0,0,0,0.7); z-index:1000; justify-content:center; align-items:center;
             animation: fadeIn 0.2s ease;
         }
         @keyframes fadeIn { from{opacity:0} to{opacity:1} }
         .modal-overlay.show { display:flex; }
         .modal {
-            background:#1e293b; border:1px solid #334155; border-radius:20px;
-            padding:32px; max-width:520px; width:92%; max-height:85vh; overflow-y:auto;
-            box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+            background:#2a1818; border:1px solid #6b3030; border-radius:18px;
+            padding:28px; max-width:500px; width:90%; max-height:80vh; overflow-y:auto;
         }
-        .modal h3 { font-size:20px; margin-bottom:4px; color:#f1f5f9; font-weight:700; }
-        .modal .modal-subtitle { font-size:12px; color:#64748b; margin-bottom:20px; }
-        .modal .actions { display:flex; gap:10px; justify-content:flex-end; margin-top:24px; padding-top:18px; border-top:1px solid #1e293b; }
+        .modal h3 { font-size:18px; margin-bottom:16px; color:#f1ece5; }
+        .modal .actions { display:flex; gap:8px; justify-content:flex-end; margin-top:20px; }
 
         /* ====== 任务弹窗（浅色主题）====== */
         .task-modal {
-            background:#f8f9fa; border:1px solid #dee2e6; border-radius:12px;
+            background:#fffaf7; border:1px solid #e8d5d0; border-radius:14px;
             padding:0; max-width:500px; width:92%; max-height:85vh; overflow-y:auto;
-            box-shadow:0 8px 32px rgba(0,0,0,0.18);
+            box-shadow:0 12px 40px rgba(0,0,0,0.25);
         }
         .task-modal .modal-header {
             display:flex; align-items:center; justify-content:space-between;
             padding:24px 28px 16px 28px;
+            border-bottom:1px solid #f0e0d8;
         }
         .task-modal .modal-title {
-            font-size:22px; font-weight:700; color:#1a1a1a; margin:0;
+            font-size:22px; font-weight:700; color:#2d1414; margin:0;
         }
         .task-modal .modal-close {
-            background:none; border:none; font-size:20px; color:#333; cursor:pointer;
-            padding:4px 8px; line-height:1; border-radius:4px; transition:background 0.15s;
+            background:none; border:none; font-size:20px; color:#8b6b6b; cursor:pointer;
+            padding:4px 8px; line-height:1; border-radius:4px; transition:all 0.15s;
         }
-        .task-modal .modal-close:hover { background:#e9ecef; }
-        .task-modal .form-group {
-            padding:0 28px; margin-bottom:18px;
-        }
+        .task-modal .modal-close:hover { background:#f5e8e2; color:#4a2020; }
+        .task-modal .form-group { padding:0 28px; margin-bottom:18px; }
         .task-modal .form-group label {
-            display:block; font-size:14px; color:#666; margin-bottom:6px; font-weight:500;
+            display:block; font-size:14px; color:#6b5050; margin-bottom:6px; font-weight:500;
         }
         .task-modal .form-group input[type="text"],
         .task-modal .form-group textarea {
-            width:100%; padding:10px 12px; border-radius:6px; border:1px solid #999;
-            background:#fff; color:#1a1a1a; font-size:14px; font-family:inherit;
+            width:100%; padding:10px 12px; border-radius:8px; border:1px solid #d4b8b0;
+            background:#fff; color:#2d1414; font-size:14px; font-family:inherit;
             outline:none; transition:border-color 0.2s;
         }
         .task-modal .form-group input[type="text"]:focus,
         .task-modal .form-group textarea:focus {
-            border-color:#22c55e; box-shadow:0 0 0 2px rgba(34,197,94,0.12);
+            border-color:#ef4444; box-shadow:0 0 0 3px rgba(239,68,68,0.1);
         }
         .task-modal .form-group textarea { resize:vertical; min-height:90px; }
-        .task-modal .field-hint {
-            font-size:12px; color:#999; margin-top:4px; line-height:1.5;
-        }
-        .task-modal .radio-group {
-            display:flex; gap:32px; align-items:center;
-        }
+        .task-modal .field-hint { font-size:12px; color:#b09890; margin-top:4px; line-height:1.5; }
+        .task-modal .radio-group { display:flex; gap:32px; align-items:center; }
         .task-modal .radio-label {
-            display:flex; align-items:center; gap:6px; font-size:14px; color:#333;
+            display:flex; align-items:center; gap:6px; font-size:14px; color:#4a3030;
             cursor:pointer; font-weight:400;
         }
         .task-modal .radio-label input[type="radio"] {
-            width:18px; height:18px; accent-color:#1a1a1a; cursor:pointer; margin:0;
+            width:18px; height:18px; accent-color:#ef4444; cursor:pointer; margin:0;
         }
-        .task-modal .stepper-group {
-            display:flex; align-items:center; gap:0;
-        }
+        .task-modal .stepper-group { display:flex; align-items:center; gap:0; }
         .task-modal .stepper-group input[type="number"] {
-            width:80px; padding:10px 12px; border-radius:6px 0 0 6px;
-            border:1px solid #999; border-right:none; background:#fff; color:#1a1a1a;
+            width:80px; padding:10px 12px; border-radius:8px 0 0 8px;
+            border:1px solid #d4b8b0; border-right:none; background:#fff; color:#2d1414;
             font-size:14px; font-family:inherit; outline:none; text-align:center;
             -moz-appearance:textfield;
         }
@@ -149,83 +220,117 @@
         .task-modal .stepper-group input[type="number"]::-webkit-outer-spin-button {
             -webkit-appearance:none; margin:0;
         }
-        .task-modal .stepper-arrows {
-            display:flex; flex-direction:column;
-        }
-        .task-modal .stepper-up,
-        .task-modal .stepper-down {
-            width:28px; height:22px; border:1px solid #999; background:#f1f3f5;
+        .task-modal .stepper-arrows { display:flex; flex-direction:column; }
+        .task-modal .stepper-up, .task-modal .stepper-down {
+            width:28px; height:22px; border:1px solid #d4b8b0; background:#f5ede8;
             cursor:pointer; font-size:10px; line-height:1; padding:0; display:flex;
-            align-items:center; justify-content:center; color:#555;
+            align-items:center; justify-content:center; color:#6b5050;
             transition:background 0.15s;
         }
-        .task-modal .stepper-up:hover,
-        .task-modal .stepper-down:hover { background:#dee2e6; }
-        .task-modal .stepper-up {
-            border-bottom:none; border-radius:0 6px 0 0;
-        }
-        .task-modal .stepper-down {
-            border-radius:0 0 6px 0;
-        }
-        .task-modal .stepper-unit {
-            margin-left:10px; font-size:14px; color:#333;
-        }
+        .task-modal .stepper-up:hover, .task-modal .stepper-down:hover { background:#e8d5d0; }
+        .task-modal .stepper-up { border-bottom:none; border-radius:0 8px 0 0; }
+        .task-modal .stepper-down { border-radius:0 0 8px 0; }
+        .task-modal .stepper-unit { margin-left:10px; font-size:14px; color:#4a3030; }
         .task-modal .actions {
             display:flex; gap:12px; justify-content:flex-end;
-            padding:20px 28px 24px 28px; border-top:1px solid #dee2e6; margin-top:6px;
+            padding:20px 28px 24px 28px; border-top:1px solid #f0e0d8; margin-top:6px;
         }
         .btn-create {
-            display:inline-block; padding:10px 28px; border-radius:6px; border:none;
-            cursor:pointer; font-size:14px; font-family:inherit; font-weight:500;
-            background:#22c55e; color:#fff; transition:background 0.2s;
+            display:inline-block; padding:10px 28px; border-radius:8px; border:none;
+            cursor:pointer; font-size:14px; font-family:inherit; font-weight:600;
+            background:linear-gradient(135deg, #ef4444, #dc2626); color:#fff;
+            transition:all 0.2s; box-shadow:0 2px 8px rgba(239,68,68,0.3);
         }
-        .btn-create:hover { background:#16a34a; }
+        .btn-create:hover { background:linear-gradient(135deg, #dc2626, #b91c1c); transform:translateY(-1px); box-shadow:0 4px 16px rgba(239,68,68,0.4); }
         .btn-cancel {
-            display:inline-block; padding:10px 28px; border-radius:6px;
-            border:1px solid #ccc; cursor:pointer; font-size:14px; font-family:inherit;
-            background:#f1f3f5; color:#333; transition:background 0.2s;
+            display:inline-block; padding:10px 28px; border-radius:8px;
+            border:1px solid #d4b8b0; cursor:pointer; font-size:14px; font-family:inherit;
+            background:#f5ede8; color:#4a3030; transition:all 0.2s;
         }
-        .btn-cancel:hover { background:#dee2e6; }
+        .btn-cancel:hover { background:#e8d5d0; }
+
         /* 预测番茄时长行 */
-        .task-modal .predict-row {
-            display:flex; gap:8px; align-items:center;
-        }
+        .task-modal .predict-row { display:flex; gap:8px; align-items:center; }
         .task-modal .predict-display {
-            flex:1; padding:10px 12px; border-radius:6px; border:1px solid #999;
-            background:#f1f3f5; color:#666; font-size:13px; font-family:inherit;
+            flex:1; padding:10px 12px; border-radius:8px; border:1px solid #d4b8b0;
+            background:#f5ede8; color:#8b6b6b; font-size:13px; font-family:inherit;
             outline:none; cursor:default;
         }
-        .task-modal .predict-display::placeholder { color:#999; }
+        .task-modal .predict-display::placeholder { color:#b09890; }
         .btn-predict {
-            display:inline-block; padding:10px 18px; border-radius:6px;
-            border:1px solid #ccc; cursor:pointer; font-size:13px; font-family:inherit;
-            background:#f1f3f5; color:#555; transition:all 0.15s;
-            white-space:nowrap;
+            display:inline-block; padding:10px 18px; border-radius:8px;
+            border:1px solid #d4b8b0; cursor:pointer; font-size:13px; font-family:inherit;
+            background:#f5ede8; color:#6b5050; transition:all 0.15s; white-space:nowrap;
         }
-        .btn-predict:hover { background:#dee2e6; color:#333; }
-        .footer { text-align:center; padding:20px; color:#475569; font-size:12px; }
-        .pomodoro-panel { background:rgba(30,41,59,0.7); border:1px solid #334155; border-radius:12px; padding:20px; margin-top:16px; }
-        .pomodoro-panel .timer { font-size:48px; font-weight:700; text-align:center; font-family:'Consolas',monospace; color:#3b82f6; margin:12px 0; }
-        .progress-bar { background:#334155; border-radius:8px; height:8px; overflow:hidden; margin:8px 0; }
-        .progress-bar .fill { background:#3b82f6; height:100%; border-radius:8px; transition:width 1s linear; }
-        @media (max-width:768px) { .stats-grid { grid-template-columns:repeat(2,1fr); } .nav-links { display:none; } }
+        .btn-predict:hover { background:#e8d5d0; color:#4a2020; }
+
+        /* ---- 番茄钟面板 ---- */
+        .pomodoro-panel {
+            background:rgba(50,22,22,0.8); border:2px solid #6b3030;
+            border-radius:16px; padding:24px; margin-top:16px;
+            box-shadow:0 8px 32px rgba(239,68,68,0.08);
+        }
+        .pomodoro-panel .timer {
+            font-size:56px; font-weight:700; text-align:center;
+            font-family:'Consolas','Courier New',monospace;
+            color:#ef4444; margin:12px 0;
+            text-shadow:0 0 20px rgba(239,68,68,0.3);
+        }
+        .pomodoro-panel .phase-text {
+            text-align:center; font-size:18px; margin-bottom:8px;
+            color:#f1ece5; font-weight:600;
+        }
+        .progress-bar { background:#3a1818; border-radius:10px; height:10px; overflow:hidden; margin:8px 0; }
+        .progress-bar .fill {
+            background:linear-gradient(90deg, #ef4444, #22c55e);
+            height:100%; border-radius:10px; transition:width 1s linear;
+        }
+
+        /* ---- 页脚 ---- */
+        .footer { text-align:center; padding:24px; color:#8b7070; font-size:12px; }
+
+        /* ---- 操作栏 ---- */
         .actions-bar { display:flex; gap:8px; align-items:center; margin-bottom:16px; flex-wrap:wrap; }
         .actions-bar select, .actions-bar input {
-            padding:8px 12px; border-radius:8px; border:1px solid #334155;
-            background:#0f172a; color:#e2e8f0; font-size:14px;
+            padding:8px 12px; border-radius:8px; border:1px solid #5c2828;
+            background:#1a0d0d; color:#f1ece5; font-size:14px;
+        }
+
+        @media (max-width:768px) {
+            .stats-grid { grid-template-columns:repeat(2,1fr); }
+            .nav-links { display:none; }
         }
     </style>
     {% block extra_head %}{% endblock %}
 </head>
 <body>
+    <!-- 背景浮动番茄粒子 -->
+    <div class="bg-tomatoes">
+        <span class="bg-tomato" style="top:8%;left:5%;--dur:6s;--delay:-2s;font-size:22px;">🍅</span>
+        <span class="bg-tomato" style="top:15%;left:88%;--dur:8s;--delay:-4s;">🍅</span>
+        <span class="bg-tomato" style="top:35%;left:3%;--dur:7s;--delay:-1s;font-size:18px;">🍅</span>
+        <span class="bg-tomato" style="top:50%;left:92%;--dur:9s;--delay:-5s;font-size:32px;">🍅</span>
+        <span class="bg-tomato" style="top:65%;left:7%;--dur:6.5s;--delay:-3s;">🍅</span>
+        <span class="bg-tomato" style="top:78%;left:90%;--dur:7.5s;--delay:-2.5s;font-size:20px;">🍅</span>
+        <span class="bg-tomato" style="top:10%;left:45%;--dur:10s;--delay:-6s;font-size:14px;">🍅</span>
+        <span class="bg-tomato" style="top:60%;left:50%;--dur:8.5s;--delay:-3.5s;font-size:16px;">🍅</span>
+        <!-- 叶片 -->
+        <span class="bg-tomato" style="top:22%;left:10%;--dur:7s;--delay:-1.5s;">🌿</span>
+        <span class="bg-tomato" style="top:42%;left:94%;--dur:6s;--delay:-2s;font-size:16px;">🌿</span>
+        <span class="bg-tomato" style="top:72%;left:4%;--dur:8s;--delay:-4s;font-size:20px;">🌿</span>
+        <!-- 花朵 -->
+        <span class="bg-tomato" style="top:30%;left:48%;--dur:9s;--delay:-3s;font-size:14px;">🌸</span>
+        <span class="bg-tomato" style="top:55%;left:86%;--dur:7.5s;--delay:-1s;font-size:12px;">🌸</span>
+    </div>
+
     <nav class="navbar">
         <div>
-            <a href="/" class="logo">🍅 <span>智能日程</span>管理器</a>
+            <a href="/" class="logo">🍅 <span>番茄</span>日程管理器</a>
         </div>
         <div class="nav-links">
             <a href="/" class="{% if active_page=='tasks' %}active{% endif %}">📋 任务</a>
             <a href="/calendar" class="{% if active_page=='calendar' %}active{% endif %}">📅 日历</a>
-            <a href="/plant" class="{% if active_page=='plant' %}active{% endif %}">🍅 番茄园</a>
+            <a href="/plant" class="{% if active_page=='plant' %}active{% endif %}">🌱 番茄园</a>
             <a href="/stats" class="{% if active_page=='stats' %}active{% endif %}">📊 统计</a>
             <a href="/honor" class="{% if active_page=='honor' %}active{% endif %}">🏅 称号</a>
             <a href="/leaderboard" class="{% if active_page=='leaderboard' %}active{% endif %}">🏆 排行榜</a>
@@ -233,8 +338,8 @@
         <div class="user-info">
             {% if session.username %}
             <span>{{ session.username }}</span>
-            <span style="color:#22c55e;">{{ honor_title }}</span>
-            <span style="color:#3b82f6;font-weight:600;">{{ points }} 积分</span>
+            <span style="color:#f87171;">{{ honor_title }}</span>
+            <span style="color:#ef4444;font-weight:600;">{{ points }} 积分</span>
             <a href="/delete_account" class="btn btn-danger btn-sm" onclick="return confirm('确定要注销账号吗？此操作不可恢复。')">注销</a>
             <a href="/logout" class="btn btn-muted btn-sm">退出</a>
             {% else %}
@@ -246,7 +351,7 @@
     {% block content %}{% endblock %}
 
     <div class="footer">
-        Smart Schedule Manager v2.0 · Flask Web · {{ now }}
+        🍅 番茄日程管理器 v2.0 · Flask Web · {{ now }}
     </div>
 
     {% block extra_scripts %}{% endblock %}

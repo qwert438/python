@@ -7,10 +7,10 @@
     text-align: center; min-height: 120vh;
 }
 .plant-title {
-    font-size: 24px; font-weight: 700; color: #f1f5f9; margin-bottom: 4px;
+    font-size: 24px; font-weight: 700; color: #f1ece5; margin-bottom: 4px;
 }
 .plant-owner {
-    font-size: 14px; color: #64748b; margin-bottom: 24px;
+    font-size: 14px; color: #b9a0a0; margin-bottom: 24px;
 }
 
 /* 花盆 + SVG 树容器 */
@@ -28,25 +28,25 @@
     max-width: 500px; margin: 0 auto 16px;
 }
 .info-card {
-    background: rgba(30,41,59,0.7); border: 1px solid #334155;
-    border-radius: 12px; padding: 14px; text-align: center;
+    background: rgba(50,22,22,0.7); border: 1px solid #6b3030;
+    border-radius: 14px; padding: 14px; text-align: center;
 }
 .info-card .val { font-size: 22px; font-weight: 700; }
-.info-card .lbl { font-size: 11px; color: #64748b; margin-top: 3px; }
-.info-card.water .val { color: #3b82f6; }
-.info-card.fert .val { color: #a855f7; }
-.info-card.growth .val { color: #22c55e; }
+.info-card .lbl { font-size: 11px; color: #b9a0a0; margin-top: 3px; }
+.info-card.water .val { color: #60a5fa; }
+.info-card.fert .val { color: #c084fc; }
+.info-card.growth .val { color: #4ade80; }
 
 /* 进度条 */
 .progress-wrap { max-width: 500px; margin: 0 auto 18px; text-align: left; }
-.progress-wrap .label { font-size: 12px; color: #64748b; margin-bottom: 4px; }
+.progress-wrap .label { font-size: 12px; color: #b9a0a0; margin-bottom: 4px; }
 .progress-wrap .label span { float: right; }
 .progress-bar {
-    background: #334155; border-radius: 8px; height: 10px; overflow: hidden;
+    background: #3a1818; border-radius: 10px; height: 10px; overflow: hidden;
 }
 .progress-bar .fill {
-    height: 100%; border-radius: 8px; transition: width 0.8s;
-    background: linear-gradient(90deg, #22c55e, #4ade80);
+    height: 100%; border-radius: 10px; transition: width 0.8s;
+    background: linear-gradient(90deg, #ef4444, #f59e0b, #22c55e);
 }
 
 /* 阶段时间线 */
@@ -58,26 +58,27 @@
     width: 14px; height: 14px; border-radius: 50%; text-align: center;
     transition: all 0.5s;
 }
-.timeline .dot.done { background: #22c55e; box-shadow: 0 0 8px rgba(34,197,94,0.5); }
-.timeline .dot.current { background: #3b82f6; box-shadow: 0 0 12px rgba(59,130,246,0.6); animation: pulse 1.5s infinite; }
-.timeline .dot.future { background: #334155; }
+.timeline .dot.done { background: #22c55e; box-shadow: 0 0 10px rgba(34,197,94,0.5); }
+.timeline .dot.current { background: #ef4444; box-shadow: 0 0 14px rgba(239,68,68,0.6); animation: pulse 1.5s infinite; }
+.timeline .dot.future { background: #5c2828; }
 @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.3); } }
-.timeline .dot-label { font-size: 10px; color: #64748b; margin-top: 4px; white-space: nowrap; }
+.timeline .dot-label { font-size: 10px; color: #b9a0a0; margin-top: 4px; white-space: nowrap; }
 
 /* 操作按钮 */
 .actions-row {
     display: flex; justify-content: center; gap: 12px; margin-top: 16px;
 }
 .action-btn {
-    padding: 10px 22px; border-radius: 10px; border: none; cursor: pointer;
+    padding: 10px 22px; border-radius: 12px; border: none; cursor: pointer;
     font-size: 14px; font-family: inherit; font-weight: 600;
-    transition: all 0.2s;
+    transition: all 0.2s; box-shadow:0 2px 8px rgba(0,0,0,0.15);
 }
-.action-btn.water { background: #3b82f6; color: #fff; }
-.action-btn.water:hover { background: #2563eb; }
-.action-btn.fertilize { background: #a855f7; color: #fff; }
-.action-btn.fertilize:hover { background: #9333ea; }
-.action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.action-btn:hover { transform:translateY(-2px); }
+.action-btn.water { background: linear-gradient(135deg, #3b82f6, #2563eb); color: #fff; }
+.action-btn.water:hover { box-shadow:0 4px 16px rgba(59,130,246,0.4); }
+.action-btn.fertilize { background: linear-gradient(135deg, #a855f7, #7c3aed); color: #fff; }
+.action-btn.fertilize:hover { box-shadow:0 4px 16px rgba(168,85,247,0.4); }
+.action-btn:disabled { opacity: 0.4; cursor: not-allowed; transform:none; }
 
 .msg-toast {
     position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
@@ -288,7 +289,7 @@
 
     <!-- 操作按钮（仅自己可操作） -->
     <div style="text-align:center;margin-top:10px;">
-        <a href="/plant-guide" style="color:#64748b;font-size:12px;text-decoration:none;">📖 查看番茄培养图鉴 →</a>
+        <a href="/plant-guide" style="color:#b9a0a0;font-size:12px;text-decoration:none;">📖 查看番茄培养图鉴 →</a>
     </div>
 
     {% if not viewing %}
