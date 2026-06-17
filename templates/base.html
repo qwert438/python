@@ -300,6 +300,22 @@
             .stats-grid { grid-template-columns:repeat(2,1fr); }
             .nav-links { display:none; }
         }
+    
+<style>
+.levelup-celebration { position:relative; text-align:center; z-index:1; }
+.levelup-particles { position:fixed; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:0; }
+.levelup-particle { position:absolute; font-size:24px; animation: confetti var(--fall-dur) ease-in forwards; animation-delay: var(--delay); opacity:0; }
+@keyframes confetti { 0% { transform: translateY(-100px) rotate(0deg) scale(1); opacity:1; } 100% { transform: translateY(105vh) rotate(var(--spin)) scale(0.3); opacity:0; } }
+.levelup-content { position:relative; z-index:2; padding:40px; }
+.levelup-icon { font-size:80px; animation: iconBounce 0.6s ease-out; }
+@keyframes iconBounce { 0% { transform: scale(0) rotate(-30deg); opacity:0; } 60% { transform: scale(1.3) rotate(5deg); opacity:1; } 100% { transform: scale(1) rotate(0deg); } }
+.levelup-title { font-size:28px; font-weight:700; color:#fbbf24; margin-top:12px; text-shadow:0 0 20px rgba(251,191,36,0.6); animation: titleSlide 0.5s 0.3s ease-out both; }
+@keyframes titleSlide { 0% { transform: translateY(30px); opacity:0; } 100% { transform: translateY(0); opacity:1; } }
+.levelup-name { font-size:42px; font-weight:900; color:#fff; margin-top:8px; text-shadow:0 0 30px rgba(239,68,68,0.6),0 0 60px rgba(251,191,36,0.4); animation: nameReveal 0.6s 0.5s ease-out both; }
+@keyframes nameReveal { 0% { transform: scale(0.3); opacity:0; filter:blur(10px); } 100% { transform: scale(1); opacity:1; filter:blur(0); } }
+.levelup-sub { font-size:14px; color:#8b7070; margin-top:24px; animation: titleSlide 0.5s 0.8s ease-out both; }
+</style>
+
     </style>
     {% block extra_head %}{% endblock %}
 </head>

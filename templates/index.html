@@ -131,6 +131,19 @@
         </div>
     </div>
 </div>
+
+	<!-- 称号晋级庆祝动画 -->
+	<div class="modal-overlay" id="levelUpOverlay" onclick="this.classList.remove('show')">
+	    <div class="levelup-celebration">
+	        <div class="levelup-particles" id="levelupParticles"></div>
+	        <div class="levelup-content">
+	            <div class="levelup-icon">🏅</div>
+	            <div class="levelup-title">称号晋级！</div>
+	            <div class="levelup-name" id="levelupName"></div>
+	            <div class="levelup-sub">点击任意处关闭</div>
+	        </div>
+	    </div>
+	</div>
 {% endblock %}
 
 {% block extra_scripts %}
@@ -140,6 +153,30 @@ let pomoSeconds = 25, pomoTotal = 25, pomoPhase = 'work', pomoWorkCount = 0;
 let pomoTaskId = null, pomoStartTime = null;
 const WORK = 25, SHORT_BREAK = 5, LONG_BREAK = 10;
 let uncompletedReminderShown = false;
+
+function showLevelUp(honorTitle) {
+    var overlay = document.getElementById('levelUpOverlay');
+    document.getElementById('levelupName').textContent = honorTitle;
+    // 生成彩色纸屑
+    var container = document.getElementById('levelupParticles');
+    container.innerHTML = '';
+    var emojis = ['🎉','🎊','✨','🌟','🍅','🏅','⭐','💫','🎯','🔥'];
+    for (var i = 0; i < 50; i++) {
+        var p = document.createElement('div');
+        p.className = 'levelup-particle';
+        p.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+        p.style.left = Math.random() * 100 + '%';
+        p.style.top = -(Math.random() * 60) + 'px';
+        p.style.setProperty('--fall-dur', (2 + Math.random() * 3) + 's');
+        p.style.setProperty('--delay', Math.random() * 0.8 + 's');
+        p.style.setProperty('--spin', (Math.random() * 720 - 360) + 'deg');
+        p.style.fontSize = (16 + Math.random() * 28) + 'px';
+        container.appendChild(p);
+    }
+    overlay.classList.add('show');
+    // 5秒后自动消失
+    setTimeout(function() { overlay.classList.remove('show'); }, 5000);
+}
 
 function sendNotification(title, body) {
     console.log('[Notify] sending:', title, '| perm:', Notification.permission);
@@ -496,6 +533,8 @@ function pomoComplete() {
                 if (data.leveled_up) {
                     document.getElementById('pomoDoneLevelUp').style.display = 'block';
                     document.getElementById('pomoDoneLevelUp').textContent = '称号升级：' + data.honor_title + '!';
+                    // 触发晋级庆祝动画
+                    setTimeout(function() { showLevelUp(data.honor_title); }, 300);
                 } else {
                     document.getElementById('pomoDoneLevelUp').style.display = 'none';
                 }
